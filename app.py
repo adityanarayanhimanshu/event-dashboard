@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
 from datetime import date, datetime
-import joblib
 
 st.set_page_config(page_title="Intraday Strategy Tracker", layout="wide")
 st.title("📊 Intraday Strategy Performance Tracker")
@@ -11,7 +10,6 @@ st.caption("Auto-refreshes every 5 min • Top strategies by win rate & PnL • 
 @st.cache_resource
 def get_engine():
     engine = create_engine(st.secrets["NEON_URL"])
-    # Auto-create tables if missing
     with engine.connect() as conn:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS strategy_performance (
@@ -40,13 +38,6 @@ def get_engine():
 
 engine = get_engine()
 
-# Load model (must be uploaded to GitHub as intraday_quant_model.pkl)
-@st.cache_resource
-def load_model():
-    return joblib.load("intraday_quant_model.pkl")
-
-model = load_model()
-
 # ====================== LATEST LIVE SIGNALS ======================
 st.subheader("📡 Latest Live Signals")
 latest = pd.read_sql('SELECT * FROM events ORDER BY "Datetime" DESC LIMIT 10', engine)
@@ -71,17 +62,16 @@ except:
     st.info("No historical data yet")
 
 # ====================== PAPER TRADING TRACKER ======================
-st.subheader("📝 Paper Trading Tracker (Persistent)")
+st.subheader("📝 Paper Trading Tracker")
 trades = pd.read_sql("SELECT * FROM trades ORDER BY entry_time DESC", engine)
 st.dataframe(trades, use_container_width=True)
 
-# Simple entry example (expand later)
 if st.button("Example: Enter Long on latest signal"):
     if not latest.empty:
         stock = latest.iloc[0]['Stock']
-        prob = latest.iloc[0]['Pred']
+        prob = latest.iloc[0].get('Pred', 0.0)
         new_trade = pd.DataFrame([{"stock": stock, "prob": prob, "entry_time": datetime.now(), "status": "Open", "pnl": 0}])
         new_trade.to_sql('trades', engine, if_exists='append', index=False)
         st.success(f"Entered Long {stock}")
 
-st.caption("✅ Your updater is running till 3:30 PM IST • Data & strategies update automatically")
+st.caption("✅ Your system is now live and updating automatically!")
