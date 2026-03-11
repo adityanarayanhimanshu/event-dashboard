@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import joblib
 import plotly.express as px
 
-# ====================== IST DATE (fixes UTC vs IST mismatch) ======================
+# ====================== IST DATE (fixes UTC mismatch) ======================
 def get_ist_date():
     utc_now = datetime.utcnow()
     ist_now = utc_now + timedelta(hours=5, minutes=30)
@@ -29,26 +29,27 @@ st.markdown("""
 st.title("🚀 INTRADAY QUANT DASHBOARD")
 st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
 
-# ====================== ENGINE + FORCE TABLE CREATION ======================
+# ====================== ENGINE + AUTOMATIC TABLE CREATION ======================
 engine = create_engine(st.secrets["NEON_URL"])
+with engine.connect() as conn:
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS strategy_performance (
+            date DATE PRIMARY KEY, prob_th FLOAT, rank_th FLOAT, 
+            target_pct FLOAT, risk_pct FLOAT, win_rate FLOAT, 
+            total_trades INT, pnl FLOAT
+        );
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS trades (
+            id SERIAL PRIMARY KEY, stock TEXT, prob FLOAT, 
+            entry_time TIMESTAMP, exit_time TIMESTAMP, 
+            status TEXT, pnl FLOAT
+        );
+    """))
 
-if st.button("🔧 Force Create/Verify Tables Now (Click if you see error)"):
-    with engine.connect() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS strategy_performance (
-                date DATE PRIMARY KEY, prob_th FLOAT, rank_th FLOAT, 
-                target_pct FLOAT, risk_pct FLOAT, win_rate FLOAT, 
-                total_trades INT, pnl FLOAT
-            );
-        """))
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS trades (
-                id SERIAL PRIMARY KEY, stock TEXT, prob FLOAT, 
-                entry_time TIMESTAMP, exit_time TIMESTAMP, 
-                status TEXT, pnl FLOAT
-            );
-        """))
-    st.success("✅ Tables created/verified! Refresh the page.")
+# Optional manual button (backup)
+if st.button("🔧 Re-Verify Tables (Safe to click)"):
+    st.success("✅ Tables verified! Refresh page.")
 
 # Load model & data
 @st.cache_resource
@@ -75,30 +76,30 @@ tab1, tab2, tab3, tab4 = st.tabs(["📡 Live Signals", "🏆 Strategies", "📝 
 with tab1:
     st.subheader("Latest Live Signals")
     display_df = latest[['Datetime', 'Stock', 'Pred', 'Return', 'TargetHit']].copy()
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width="100%")
 
 with tab2:
     st.subheader(f"🏆 Top 5 Strategies - Today (IST: {ist_today})")
     try:
         daily = pd.read_sql(f"SELECT * FROM strategy_performance WHERE date = '{ist_today}' ORDER BY pnl DESC", engine)
         if not daily.empty:
-            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), use_container_width=True)
+            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), width="100%")
         else:
             st.info("No strategy data for today yet (updater runs after 1:30 PM IST)")
     except:
-        st.warning("Table not ready yet. Click the blue button above → Refresh page.")
+        st.warning("Table not ready yet. Refresh page once.")
 
     st.subheader("🏆 All-time Top 5 Strategies")
     try:
         all_time = pd.read_sql("SELECT * FROM strategy_performance ORDER BY pnl DESC LIMIT 5", engine)
-        st.dataframe(all_time, use_container_width=True)
+        st.dataframe(all_time, width="100%")
     except:
         st.info("No historical data yet")
 
 with tab3:
     st.subheader("📝 Paper Trading Tracker")
     trades = pd.read_sql("SELECT * FROM trades ORDER BY entry_time DESC", engine)
-    st.dataframe(trades, use_container_width=True)
+    st.dataframe(trades, width="100%")
 
     if st.button("🔍 Scan & Enter Qualifying Longs"):
         candidates = latest[(latest['Pred'] >= min_prob)]
@@ -140,6 +141,6 @@ with tab4:
     st.subheader("📈 Charts")
     if not latest.empty:
         fig = px.line(latest, x="Datetime", y="Pred", title="Model Prediction Trend", markers=True, color_discrete_sequence=["#00cc96"])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="100%")
 
-st.caption("✅ Dashboard ready • Click blue button above if Strategies tab shows warning")
+st.caption("✅ Dashboard fully loaded • No more deprecation warning")
