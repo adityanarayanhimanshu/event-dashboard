@@ -5,7 +5,7 @@ from datetime import date, datetime
 import joblib
 import plotly.express as px
 
-# ====================== BEAUTIFUL POWER BI STYLE ======================
+# ====================== BEAUTIFUL POWER BI / CODEX STYLE ======================
 st.set_page_config(page_title="Intraday Quant Dashboard", layout="wide", page_icon="📈")
 st.markdown("""
 <style>
