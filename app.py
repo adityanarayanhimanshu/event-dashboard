@@ -10,6 +10,7 @@ st.caption("Auto-refreshes every 5 min • Top strategies by win rate & PnL • 
 @st.cache_resource
 def get_engine():
     engine = create_engine(st.secrets["NEON_URL"])
+    # Force create tables (safe - IF NOT EXISTS)
     with engine.connect() as conn:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS strategy_performance (
@@ -63,8 +64,11 @@ except:
 
 # ====================== PAPER TRADING TRACKER ======================
 st.subheader("📝 Paper Trading Tracker")
-trades = pd.read_sql("SELECT * FROM trades ORDER BY entry_time DESC", engine)
-st.dataframe(trades, use_container_width=True)
+try:
+    trades = pd.read_sql("SELECT * FROM trades ORDER BY entry_time DESC", engine)
+    st.dataframe(trades, use_container_width=True)
+except:
+    st.info("Paper trading tracker ready — first trade will create the table")
 
 if st.button("Example: Enter Long on latest signal"):
     if not latest.empty:
