@@ -5,7 +5,7 @@ from datetime import date, datetime
 import joblib
 import plotly.express as px
 
-# ====================== BEAUTIFUL DARK THEME ======================
+# ====================== BEAUTIFUL POWER BI / CODEX STYLE ======================
 st.set_page_config(page_title="Intraday Quant Dashboard", layout="wide", page_icon="📈")
 st.markdown("""
 <style>
@@ -19,14 +19,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚀 INTRADAY QUANT DASHBOARD")
-st.caption("Auto-refreshes every 5 min • Full paper trading with auto-exit & PnL • Historical strategy tracking")
+st.caption("Auto-refreshes every 5 min • Full paper trading with auto-exit & PnL • Historical tracking")
 
 @st.cache_resource
 def get_engine():
     engine = create_engine(st.secrets["NEON_URL"])
     with engine.connect() as conn:
-        conn.execute(text("CREATE TABLE IF NOT EXISTS strategy_performance (date DATE PRIMARY KEY, prob_th FLOAT, rank_th FLOAT, target_pct FLOAT, risk_pct FLOAT, win_rate FLOAT, total_trades INT, pnl FLOAT);"))
-        conn.execute(text("CREATE TABLE IF NOT EXISTS trades (id SERIAL PRIMARY KEY, stock TEXT, prob FLOAT, entry_time TIMESTAMP, exit_time TIMESTAMP, status TEXT, pnl FLOAT);"))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS strategy_performance (
+                date DATE PRIMARY KEY, prob_th FLOAT, rank_th FLOAT, 
+                target_pct FLOAT, risk_pct FLOAT, win_rate FLOAT, 
+                total_trades INT, pnl FLOAT
+            );
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS trades (
+                id SERIAL PRIMARY KEY, stock TEXT, prob FLOAT, 
+                entry_time TIMESTAMP, exit_time TIMESTAMP, 
+                status TEXT, pnl FLOAT
+            );
+        """))
     return engine
 
 engine = get_engine()
@@ -63,15 +75,21 @@ with tab1:
 
 with tab2:
     st.subheader(f"🏆 Top 5 Strategies - Today ({date.today()})")
-    daily = pd.read_sql(f"SELECT * FROM strategy_performance WHERE date = '{date.today()}' ORDER BY pnl DESC", engine)
-    if not daily.empty:
-        st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), use_container_width=True)
-    else:
-        st.info("Waiting for calculation after 1:30 PM")
+    try:
+        daily = pd.read_sql(f"SELECT * FROM strategy_performance WHERE date = '{date.today()}' ORDER BY pnl DESC", engine)
+        if not daily.empty:
+            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), use_container_width=True)
+        else:
+            st.info("Waiting for calculation after 1:30 PM")
+    except:
+        st.info("Waiting for calculation...")
 
     st.subheader("🏆 All-time Top 5 Strategies")
-    all_time = pd.read_sql("SELECT * FROM strategy_performance ORDER BY pnl DESC LIMIT 5", engine)
-    st.dataframe(all_time, use_container_width=True)
+    try:
+        all_time = pd.read_sql("SELECT * FROM strategy_performance ORDER BY pnl DESC LIMIT 5", engine)
+        st.dataframe(all_time, use_container_width=True)
+    except:
+        st.info("No historical data yet")
 
 with tab3:
     st.subheader("📝 Paper Trading Tracker")
