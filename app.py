@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import joblib
 import plotly.express as px
 
-# ====================== IST DATE (fixes UTC mismatch) ======================
+# ====================== IST DATE ======================
 def get_ist_date():
     utc_now = datetime.utcnow()
     ist_now = utc_now + timedelta(hours=5, minutes=30)
@@ -29,7 +29,7 @@ st.markdown("""
 st.title("🚀 INTRADAY QUANT DASHBOARD")
 st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
 
-# ====================== ENGINE + AUTOMATIC TABLE CREATION ======================
+# ====================== AUTOMATIC TABLE CREATION ======================
 engine = create_engine(st.secrets["NEON_URL"])
 with engine.connect() as conn:
     conn.execute(text("""
@@ -47,7 +47,7 @@ with engine.connect() as conn:
         );
     """))
 
-# Optional manual button (backup)
+# Backup button
 if st.button("🔧 Re-Verify Tables (Safe to click)"):
     st.success("✅ Tables verified! Refresh page.")
 
@@ -76,14 +76,14 @@ tab1, tab2, tab3, tab4 = st.tabs(["📡 Live Signals", "🏆 Strategies", "📝 
 with tab1:
     st.subheader("Latest Live Signals")
     display_df = latest[['Datetime', 'Stock', 'Pred', 'Return', 'TargetHit']].copy()
-    st.dataframe(display_df, width="100%")
+    st.dataframe(display_df, width='stretch')
 
 with tab2:
     st.subheader(f"🏆 Top 5 Strategies - Today (IST: {ist_today})")
     try:
         daily = pd.read_sql(f"SELECT * FROM strategy_performance WHERE date = '{ist_today}' ORDER BY pnl DESC", engine)
         if not daily.empty:
-            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), width="100%")
+            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), width='stretch')
         else:
             st.info("No strategy data for today yet (updater runs after 1:30 PM IST)")
     except:
@@ -92,14 +92,14 @@ with tab2:
     st.subheader("🏆 All-time Top 5 Strategies")
     try:
         all_time = pd.read_sql("SELECT * FROM strategy_performance ORDER BY pnl DESC LIMIT 5", engine)
-        st.dataframe(all_time, width="100%")
+        st.dataframe(all_time, width='stretch')
     except:
         st.info("No historical data yet")
 
 with tab3:
     st.subheader("📝 Paper Trading Tracker")
     trades = pd.read_sql("SELECT * FROM trades ORDER BY entry_time DESC", engine)
-    st.dataframe(trades, width="100%")
+    st.dataframe(trades, width='stretch')
 
     if st.button("🔍 Scan & Enter Qualifying Longs"):
         candidates = latest[(latest['Pred'] >= min_prob)]
@@ -141,6 +141,6 @@ with tab4:
     st.subheader("📈 Charts")
     if not latest.empty:
         fig = px.line(latest, x="Datetime", y="Pred", title="Model Prediction Trend", markers=True, color_discrete_sequence=["#00cc96"])
-        st.plotly_chart(fig, width="100%")
+        st.plotly_chart(fig, width='stretch')
 
-st.caption("✅ Dashboard fully loaded • No more deprecation warning")
+st.caption("✅ Dashboard fully loaded • Click Re-Verify button once if Strategies tab shows warning")
