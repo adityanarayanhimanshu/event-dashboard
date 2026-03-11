@@ -1,9 +1,17 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
-from datetime import date, datetime
+from datetime import datetime, timedelta
 import joblib
 import plotly.express as px
+
+# ====================== IST DATE (fixes UTC vs IST mismatch) ======================
+def get_ist_date():
+    utc_now = datetime.utcnow()
+    ist_now = utc_now + timedelta(hours=5, minutes=30)
+    return ist_now.date()
+
+ist_today = get_ist_date()
 
 # ====================== BEAUTIFUL POWER BI STYLE ======================
 st.set_page_config(page_title="Intraday Quant Dashboard", layout="wide", page_icon="📈")
@@ -19,11 +27,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚀 INTRADAY QUANT DASHBOARD")
-st.caption("Auto-refreshes every 5 min • Auto exit + PnL • Historical tracking")
+st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
 
-@st.cache_resource
-def get_engine():
-    engine = create_engine(st.secrets["NEON_URL"])
+# ====================== ENGINE + FORCE TABLE CREATION ======================
+engine = create_engine(st.secrets["NEON_URL"])
+
+if st.button("🔧 Force Create/Verify Tables Now (Click if you see error)"):
     with engine.connect() as conn:
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS strategy_performance (
@@ -39,11 +48,9 @@ def get_engine():
                 status TEXT, pnl FLOAT
             );
         """))
-    return engine
+    st.success("✅ Tables created/verified! Refresh the page.")
 
-engine = get_engine()
-
-# Load model
+# Load model & data
 @st.cache_resource
 def load_model():
     try:
@@ -52,7 +59,6 @@ def load_model():
         return None
 
 model = load_model()
-
 latest = pd.read_sql('SELECT * FROM events ORDER BY "Datetime" DESC LIMIT 20', engine)
 
 # ====================== SIDEBAR FILTERS ======================
@@ -69,21 +75,25 @@ tab1, tab2, tab3, tab4 = st.tabs(["📡 Live Signals", "🏆 Strategies", "📝 
 with tab1:
     st.subheader("Latest Live Signals")
     display_df = latest[['Datetime', 'Stock', 'Pred', 'Return', 'TargetHit']].copy()
-    if model and not latest.empty:
-        display_df["Model_Pred"] = model.predict_proba(latest[["Sentiment", "Momentum5", "Momentum15", "Momentum30", "Momentum60", "ORBStrength", "ORBWeakness", "TimeBlock", "RelVolume", "Trend3", "Volatility15", "Volatility60", "Range15", "LiquidityVacuum", "VolatilityRegime", "OrderflowImbalance", "VolumeSpike", "VolumeShock", "VWAPDeviation", "VWAPMomentum", "Acceleration", "PeerMomentum", "RelativeRank", "SectorMomentum", "RelativeStrengthSector", "RelativeStrengthMarketIndia", "RelativeStrengthMarketUS", "HighSweep", "LowSweep", "SweepStrength", "RecentHighSweeps", "RecentLowSweeps", "SP500_return", "NASDAQ_return", "CRUDE_return", "USDINR_return", "NiftyMomentum", "BankNiftyMomentum", "MarketBreadth", "MarketBreadthPressure", "LagMomentum"]])[:, 1]
     st.dataframe(display_df, use_container_width=True)
 
 with tab2:
-    st.subheader(f"🏆 Top 5 Strategies - Today ({date.today()})")
-    daily = pd.read_sql(f"SELECT * FROM strategy_performance WHERE date = '{date.today()}' ORDER BY pnl DESC", engine)
-    if not daily.empty:
-        st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), use_container_width=True)
-    else:
-        st.info("Waiting for calculation after 1:30 PM")
+    st.subheader(f"🏆 Top 5 Strategies - Today (IST: {ist_today})")
+    try:
+        daily = pd.read_sql(f"SELECT * FROM strategy_performance WHERE date = '{ist_today}' ORDER BY pnl DESC", engine)
+        if not daily.empty:
+            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), use_container_width=True)
+        else:
+            st.info("No strategy data for today yet (updater runs after 1:30 PM IST)")
+    except:
+        st.warning("Table not ready yet. Click the blue button above → Refresh page.")
 
     st.subheader("🏆 All-time Top 5 Strategies")
-    all_time = pd.read_sql("SELECT * FROM strategy_performance ORDER BY pnl DESC LIMIT 5", engine)
-    st.dataframe(all_time, use_container_width=True)
+    try:
+        all_time = pd.read_sql("SELECT * FROM strategy_performance ORDER BY pnl DESC LIMIT 5", engine)
+        st.dataframe(all_time, use_container_width=True)
+    except:
+        st.info("No historical data yet")
 
 with tab3:
     st.subheader("📝 Paper Trading Tracker")
@@ -97,7 +107,6 @@ with tab3:
             new_trade.to_sql('trades', engine, if_exists='append', index=False)
         st.success(f"✅ Entered {len(candidates)} qualifying longs")
 
-    # Auto + Manual Exit + PnL
     open_trades = trades[trades['status'] == 'Open']
     for idx, trade in open_trades.iterrows():
         col1, col2, col3 = st.columns([3,1,1])
@@ -133,4 +142,4 @@ with tab4:
         fig = px.line(latest, x="Datetime", y="Pred", title="Model Prediction Trend", markers=True, color_discrete_sequence=["#00cc96"])
         st.plotly_chart(fig, use_container_width=True)
 
-st.caption("✅ Professional dashboard ready • All PnL saved automatically • Historical tracking enabled")
+st.caption("✅ Dashboard ready • Click blue button above if Strategies tab shows warning")
