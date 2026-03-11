@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import joblib
 import plotly.express as px
 
-# ====================== IST DATE (always correct for India) ======================
+# ====================== IST DATE ======================
 def get_ist_date():
     utc_now = datetime.utcnow()
     ist_now = utc_now + timedelta(hours=5, minutes=30)
@@ -29,7 +29,7 @@ st.markdown("""
 st.title("🚀 INTRADAY QUANT DASHBOARD")
 st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
 
-# ====================== AUTOMATIC TABLE CREATION (guaranteed) ======================
+# ====================== AUTOMATIC TABLE CREATION ======================
 engine = create_engine(st.secrets["NEON_URL"])
 with engine.connect() as conn:
     conn.execute(text("""
@@ -46,7 +46,6 @@ with engine.connect() as conn:
             status TEXT, pnl FLOAT
         );
     """))
-    conn.commit()  # Important for Neon/Postgres
 
 # ====================== LOAD MODEL & DATA ======================
 @st.cache_resource
