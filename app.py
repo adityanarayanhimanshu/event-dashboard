@@ -19,7 +19,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🚀 INTRADAY QUANT DASHBOARD")
-st.caption("Auto-refreshes every 5 min • Auto exit + PnL • Historical tracking")
+st.caption("Auto-refreshes every 5 min • Full paper trading with auto-exit & PnL • Historical tracking")
 
 @st.cache_resource
 def get_engine():
