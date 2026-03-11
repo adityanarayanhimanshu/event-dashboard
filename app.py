@@ -72,14 +72,14 @@ tab1, tab2, tab3, tab4 = st.tabs(["📡 Live Signals", "🏆 Strategies", "📝 
 with tab1:
     st.subheader("Latest Live Signals")
     display_df = latest[['Datetime', 'Stock', 'Pred', 'Return', 'TargetHit']].copy()
-    st.dataframe(display_df, use_container_width=True)
+    st.dataframe(display_df, width='stretch')
 
 with tab2:
     st.subheader(f"🏆 Top 5 Strategies - Today (IST: {ist_today})")
     try:
         daily = pd.read_sql(f"SELECT * FROM strategy_performance WHERE date = '{ist_today}' ORDER BY pnl DESC", engine)
         if not daily.empty:
-            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), use_container_width=True)
+            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), width='stretch')
         else:
             st.info("No strategy data for today yet (updater runs after 1:30 PM IST)")
     except:
@@ -88,14 +88,14 @@ with tab2:
     st.subheader("🏆 All-time Top 5 Strategies")
     try:
         all_time = pd.read_sql("SELECT * FROM strategy_performance ORDER BY pnl DESC LIMIT 5", engine)
-        st.dataframe(all_time, use_container_width=True)
+        st.dataframe(all_time, width='stretch')
     except:
         st.info("No historical data yet")
 
 with tab3:
     st.subheader("📝 Paper Trading Tracker")
     trades = pd.read_sql("SELECT * FROM trades ORDER BY entry_time DESC", engine)
-    st.dataframe(trades, use_container_width=True)
+    st.dataframe(trades, width='stretch')
 
     if st.button("🔍 Scan & Enter Qualifying Longs"):
         candidates = latest[(latest['Pred'] >= min_prob)]
@@ -137,6 +137,6 @@ with tab4:
     st.subheader("📈 Charts")
     if not latest.empty:
         fig = px.line(latest, x="Datetime", y="Pred", title="Model Prediction Trend", markers=True, color_discrete_sequence=["#00cc96"])
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 st.caption("✅ Dashboard fully loaded • All PnL saved automatically • Historical tracking ready")
