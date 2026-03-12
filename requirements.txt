@@ -8,3 +8,4 @@ streamlit
 pyotp
 transformers
 numpy
+scikit-learn
