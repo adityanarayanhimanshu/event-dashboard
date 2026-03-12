@@ -6,7 +6,7 @@ import sys
 import time
 import glob
 import pyotp
-import fivepaisa
+from py5paisa import FivePaisaClient
 
 # ====================== 5PAISA CREDENTIALS (from your config.py) ======================
 # ←←← PASTE YOUR REAL VALUES HERE FROM config.py ←←←
@@ -248,3 +248,4 @@ if hour >= 13:
         print("Strategy performance already calculated today")
 
 print("🎉 Updater finished successfully!")
+
