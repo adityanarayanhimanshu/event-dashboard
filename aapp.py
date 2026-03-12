@@ -79,7 +79,7 @@ model = load_model()
 # Clear Cache
 st.cache_data.clear()
 
-latest = pd.read_sql("""
+latest = pd.read_sql_query("""
 WITH recent AS (
     SELECT *
     FROM events
@@ -105,7 +105,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["📡 Live Signals", "🏆 Strategies", 
 
 with tab1:
     st.subheader("All Stocks - Latest Probability (Descending by Pred)")
-    full_signals = latest.sort_values("Pred", ascending=False).reset_index(drop=True)
+    full_signals = latest.sort_values(["Datetime","Pred"], ascending=[False, False])
     st.dataframe(full_signals[['Stock', 'Pred', 'Return', 'TargetHit']], width='stretch')
 
     col_long, col_short = st.columns(2)
