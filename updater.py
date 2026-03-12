@@ -189,13 +189,15 @@ for stock, scrip in stocks.items():
     try:
 
         file = f"{DATA_PATH}/{stock}.parquet"
-        start_date = (date.today() - timedelta(days=60)).strftime("%Y-%m-%d")
-
+        start_date = "2025-01-01"
+        
         if os.path.exists(file):
             old = pd.read_parquet(file)
             last_time = pd.to_datetime(old["Datetime"]).max()
-            start_date = (last_time + timedelta(minutes=5)).strftime("%Y-%m-%d")
-
+        
+            # fetch slightly earlier to avoid missing candles
+            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d")
+        
         print(stock, "fetching from", start_date)
 
         data = client.historical_data(
@@ -308,6 +310,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
