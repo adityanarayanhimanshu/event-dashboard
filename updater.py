@@ -9,7 +9,7 @@ import sys
 TEST_MODE = True   # ← Change to False after testing
 # =================================================================
 
-CONNECTION_STRING = "postgresql://neondb_owner:npg_Lr6pkM7vxsQX@ep-restless-recipe-adda2yph.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+CONNECTION_STRING = "NEON_URL"
 
 engine = create_engine(CONNECTION_STRING)
 
@@ -65,5 +65,6 @@ if TEST_MODE or (ist_hour < 13 or (ist_hour == 13 and ist_minute <= 30)):
             print(f"✅ Saved {len(results)} strategy combinations for today")
         else:
             print("No data for today yet")
+
 
 print(f"✅ Updater finished at IST {ist_now.strftime('%H:%M')}")
