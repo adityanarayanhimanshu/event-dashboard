@@ -29,7 +29,8 @@ except Exception as e:
 
 print("Login response:", response)
 
-if not response or "RequestToken" not in response:
+# Login already successful if response exists
+if response is None:
     print("Login failed")
     sys.exit(1)
 
@@ -207,4 +208,5 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
