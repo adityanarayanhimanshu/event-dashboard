@@ -13,7 +13,19 @@ def get_ist_date():
 
 ist_today = get_ist_date()
 
+# ====================== BEAUTIFUL POWER BI STYLE ======================
 st.set_page_config(page_title="Intraday Quant Dashboard", layout="wide", page_icon="📈")
+st.markdown("""
+<style>
+    .main {background-color: #0e1117; color: #ffffff;}
+    .stMetric {background-color: #1e2533; border-radius: 12px; padding: 15px; border: 1px solid #00cc96;}
+    .stButton>button {background-color: #00cc96; color: white; border-radius: 8px; font-weight: bold;}
+    h1 {color: #00cc96; font-size: 2.5rem;}
+    .stSlider {color: #00cc96;}
+    .dataframe {background-color: #1e2533;}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("🚀 INTRADAY QUANT DASHBOARD")
 st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
 
@@ -44,7 +56,13 @@ def load_model():
         return None
 
 model = load_model()
-latest = pd.read_sql('SELECT * FROM events ORDER BY "Datetime" DESC LIMIT 100', engine)  # Increased to 100 for more data
+
+# Fetch **latest candle for each stock** (no duplicates)
+latest = pd.read_sql("""
+    SELECT DISTINCT ON ("Stock") *
+    FROM events 
+    ORDER BY "Stock", "Datetime" DESC
+""", engine)
 
 # ====================== SIDEBAR FILTERS ======================
 st.sidebar.header("🎛️ Trading Filters")
@@ -58,9 +76,9 @@ risk_pct = st.sidebar.slider("Risk %", 0.1, 1.0, 0.3, 0.1)
 tab1, tab2, tab3, tab4 = st.tabs(["📡 Live Signals", "🏆 Strategies", "📝 Paper Trading", "📈 Charts"])
 
 with tab1:
-    st.subheader("All Stocks - Descending by Pred (Latest Candles)")
+    st.subheader("All Stocks - Latest Probability (Descending by Pred)")
     full_signals = latest.sort_values("Pred", ascending=False).reset_index(drop=True)
-    st.dataframe(full_signals[['Datetime', 'Stock', 'Pred', 'Return', 'TargetHit']], width='stretch')
+    st.dataframe(full_signals[['Stock', 'Pred', 'Return', 'TargetHit']], width='stretch')
 
     col_long, col_short = st.columns(2)
     with col_long:
