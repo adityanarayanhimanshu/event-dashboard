@@ -55,10 +55,101 @@ os.makedirs(DATA_PATH, exist_ok=True)
 
 # Your stocks dict (from notebook)
 stocks = {
-    "RELIANCE": 2885,
-    "TCS": 11536,
-    "HDFCBANK": 1333,
-    # ... add all your stocks here (I shortened for message, paste your full dict)
+    "RELIANCE":2885,
+    "TCS":11536,
+    "HDFCBANK":1333,
+    "INFY":1594,
+    "ICICIBANK":4963,
+    "HINDUNILVR":1394,
+    "ITC":1660,
+    "SBIN":3045,
+    "BHARTIARTL":10604,
+    "KOTAKBANK":1922,
+    "LT":11483,
+    "AXISBANK":5900,
+    "ASIANPAINT":236,
+    "MARUTI":10999,
+    "TITAN":3506,
+    "BAJFINANCE":317,
+    "BAJAJFINSV":16675,
+    "HCLTECH":7229,
+    "WIPRO":3787,
+    "ULTRACEMCO":11532,
+    
+    "ONGC":2475,
+    "TATASTEEL":3499,
+    "JSWSTEEL":11723,
+    "HINDALCO":1363,
+    "COALINDIA":20374,
+    "NTPC":11630,
+    "POWERGRID":14977,
+    "ADANIENT":25,
+    "ADANIPORTS":15083,
+    "ADANIGREEN":3563,
+    
+    "GRASIM":1232,
+    "DIVISLAB":10940,
+    "DRREDDY":881,
+    "SUNPHARMA":3351,
+    "CIPLA":694,
+    "APOLLOHOSP":157,
+    "MAXHEALTH":22377,
+    "TORNTPHARM":3518,
+    "ALKEM":11703,
+    "ZYDUSLIFE":7929,
+    
+    "TECHM":13538,
+    "LTIM":17818,
+    "PERSISTENT":18365,
+    "MPHASIS":4503,
+    "COFORGE":11543,
+    
+    "NESTLEIND":17963,
+    "BRITANNIA":547,
+    "DABUR":772,
+    "GODREJCP":10099,
+    "COLPAL":15141,
+    "MARICO":4067,
+    
+    "ICICIPRULI":18652,
+    "SBILIFE":21808,
+    "HDFCLIFE":467,
+    "BAJAJHLDNG":7806,
+    
+    "DLF":14732,
+    "LODHA":24948,
+    "OBEROIRLTY":20242,
+    
+    "INDIGO":11195,
+    "IRCTC":13611,
+    "ZOMATO":5097,
+    "PAYTM":3045,
+    
+    "SIEMENS":3150,
+    "ABB":13,
+    "BHEL":438,
+    "BEL":383,
+    "HAL":2303,
+    
+    "PAGEIND":14413,
+    "TRENT":1964,
+    "NYKAA":6545,
+    "VOLTAS":3718,
+    
+    "GAIL":4717,
+    "PETRONET":11351,
+    "IGL":11262,
+    "MGL":17534,
+    
+    "SRF":3273,
+    "PIIND":24184,
+    "DEEPAKNTR":19943,
+    "AARTIIND":21238,
+    
+    "INDUSTOWER":29135,
+    "TATACOMM":3721,
+    "NAUKRI":13751,
+    "POLYCAB":9590
 }
 
 new_frames = []
@@ -75,9 +166,14 @@ for stock, scrip in stocks.items():
             print(f"{stock} updating from {start_date}")
 
         # Fetch from 5paisa (your real API call - replace with your client)
-        data = client.historical_data(  # ← your 5paisa client here
-            Exch="N", ExchangeSegment="C", ScripCode=scrip,
-            time="5m", From=start_date, To=date.today().strftime("%Y-%m-%d")
+        client = FivePaisaClient(cred=cred)
+        data = client.historical_data(
+            Exch="N",
+            ExchangeSegment="C",
+            ScripCode=scrip,
+            time="5m",
+            From=start_date,
+            To=date.today().strftime("%Y-%m-%d")
         )
 
         if data is None or len(data) == 0:
@@ -148,3 +244,4 @@ if len(already_done) == 0:
         print("No data for today yet")
 
 print("🎉 Updater finished successfully!")
+
