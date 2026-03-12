@@ -39,7 +39,12 @@ st.markdown("""
 
 st.title("🚀 INTRADAY QUANT DASHBOARD")
 st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
-
+st.markdown(
+    """
+    <meta http-equiv="refresh" content="300">
+    """,
+    unsafe_allow_html=True
+)
 if not is_market_open:
     st.warning("⚠️ Market is currently closed (outside 9:15–15:30 IST on weekdays). Live signals show last known data. Updater will resume when market opens.")
 
@@ -71,9 +76,15 @@ def load_model():
 
 model = load_model()
 latest = pd.read_sql("""
-    SELECT DISTINCT ON ("Stock") *
-    FROM events 
-    ORDER BY "Stock", "Datetime" DESC
+WITH recent AS (
+    SELECT *
+    FROM events
+    WHERE "Datetime" > NOW() - INTERVAL '2 day'
+)
+SELECT DISTINCT ON ("Stock")
+    "Datetime","Stock","Pred","Return","TargetHit"
+FROM recent
+ORDER BY "Stock","Datetime" DESC
 """, engine)
 
 # ====================== SIDEBAR FILTERS ======================
