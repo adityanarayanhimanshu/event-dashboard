@@ -5,13 +5,24 @@ from datetime import datetime, timedelta
 import joblib
 import plotly.express as px
 
-# ====================== IST DATE ======================
-def get_ist_date():
+# ====================== IST DATE & TIME ======================
+def get_ist_now():
     utc_now = datetime.utcnow()
     ist_now = utc_now + timedelta(hours=5, minutes=30)
-    return ist_now.date()
+    return ist_now
 
-ist_today = get_ist_date()
+ist_now = get_ist_now()
+ist_today = ist_now.date()
+
+# ====================== MARKET HOURS CHECK ======================
+weekday = ist_now.weekday()
+hour = ist_now.hour
+minute = ist_now.minute
+
+is_market_open = (
+    weekday < 5 and 
+    (9 <= hour < 15 or (hour == 15 and minute <= 30))
+)
 
 # ====================== BEAUTIFUL POWER BI STYLE ======================
 st.set_page_config(page_title="Intraday Quant Dashboard", layout="wide", page_icon="📈")
@@ -28,6 +39,9 @@ st.markdown("""
 
 st.title("🚀 INTRADAY QUANT DASHBOARD")
 st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
+
+if not is_market_open:
+    st.warning("⚠️ Market is currently closed (outside 9:15–15:30 IST on weekdays). Live signals show last known data. Updater will resume when market opens.")
 
 # ====================== AUTOMATIC TABLE CREATION ======================
 engine = create_engine(st.secrets["NEON_URL"])
@@ -56,8 +70,6 @@ def load_model():
         return None
 
 model = load_model()
-
-# Fetch **latest candle for each stock** (no duplicates)
 latest = pd.read_sql("""
     SELECT DISTINCT ON ("Stock") *
     FROM events 
@@ -73,7 +85,7 @@ target_pct = st.sidebar.slider("Target %", 0.1, 2.0, 0.5, 0.1)
 risk_pct = st.sidebar.slider("Risk %", 0.1, 1.0, 0.3, 0.1)
 
 # ====================== TABS ======================
-tab1, tab2, tab3, tab4 = st.tabs(["📡 Live Signals", "🏆 Strategies", "📝 Paper Trading", "📈 Charts"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📡 Live Signals", "🏆 Strategies", "📝 Paper Trading", "📈 Charts", "📊 Equity Curve"])
 
 with tab1:
     st.subheader("All Stocks - Latest Probability (Descending by Pred)")
@@ -155,5 +167,18 @@ with tab4:
     if not latest.empty:
         fig = px.line(latest, x="Datetime", y="Pred", title="Model Prediction Trend", markers=True, color_discrete_sequence=["#00cc96"])
         st.plotly_chart(fig, width='stretch')
+
+with tab5:
+    st.subheader("📊 Equity Curve (Cumulative PnL)")
+    try:
+        trades = pd.read_sql("SELECT entry_time, pnl FROM trades WHERE pnl IS NOT NULL ORDER BY entry_time", engine)
+        if not trades.empty:
+            trades['Cumulative_PnL'] = trades['pnl'].cumsum()
+            fig_equity = px.line(trades, x="entry_time", y="Cumulative_PnL", title="Equity Curve (PnL over time)", markers=True, color_discrete_sequence=["#00cc96"])
+            st.plotly_chart(fig_equity, width='stretch')
+        else:
+            st.info("No closed trades with PnL yet")
+    except:
+        st.info("Waiting for first closed trade with PnL")
 
 st.caption("✅ Dashboard fully loaded • All PnL saved automatically • Historical tracking ready")
