@@ -311,8 +311,27 @@ if new_frames:
     # Run predictions
     try:
         X = df_new[features]
+        # ====================== MODEL PREDICTIONS ======================
+
         preds = model.predict_proba(X)[:,1]
-        df_new["Pred"] = preds
+        
+        # Raw prediction
+        df_new["Pred_raw"] = preds
+        
+        # Smooth prediction
+        df_new["Pred"] = (
+            df_new.sort_values("Datetime")
+            .groupby("Stock")["Pred_raw"]
+            .transform(lambda x: x.rolling(3, min_periods=1).mean())
+        )
+        
+        # ====================== TIME OF DAY ADJUSTMENT ======================
+        
+        if ist_now.hour < 10:
+            df_new["Pred"] *= 0.95
+        
+        elif ist_now.hour > 14:
+            df_new["Pred"] *= 1.05
     except Exception as e:
         print("Prediction failed:", e)
         df_new["Pred"] = None
@@ -385,6 +404,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
