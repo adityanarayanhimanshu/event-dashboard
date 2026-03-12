@@ -78,8 +78,6 @@ print("Market open or FORCE_RUN enabled — proceeding...")
 
 # market hours 9:15–15:30
 
-print("Market open. Updating data.")
-
 # ====================== DATA PATH ======================
 DATA_PATH = "data/stocks"
 os.makedirs(DATA_PATH, exist_ok=True)
@@ -206,9 +204,9 @@ for stock, scrip in stocks.items():
             ScripCode=scrip,
             time="5m",
             From=start_date,
-            To=date.today().strftime("%Y-%m-%d")
+            To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
         )
-        print(stock, "rows received:", len(data) if data else 0)
+        print(stock, "rows received:", 0 if data is None else len(data))
         if data is None:
             print("No response:", stock)
             continue
@@ -310,6 +308,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
