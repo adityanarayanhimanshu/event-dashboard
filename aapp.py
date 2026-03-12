@@ -80,6 +80,7 @@ WITH recent AS (
     SELECT *
     FROM events
     WHERE "Datetime" > NOW() - INTERVAL '2 day'
+     AND "Pred" IS NOT NULL
 )
 SELECT DISTINCT ON ("Stock")
     "Datetime","Stock","Pred","Return","TargetHit"
