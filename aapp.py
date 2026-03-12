@@ -75,6 +75,10 @@ def load_model():
         return None
 
 model = load_model()
+
+# Clear Cache
+st.cache_data.clear()
+
 latest = pd.read_sql("""
 WITH recent AS (
     SELECT *
