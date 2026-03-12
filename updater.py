@@ -34,12 +34,17 @@ totp_code = totp.now()
 response = client.get_totp_session(
     client_code=client_code,
     totp=totp_code,
-    pin = pin
+    pin=pin
 )
+
 print("5paisa login response:", response)
 
+if response is None:
+    print("❌ Login returned None")
+    sys.exit(1)
+
 if not response.get("RequestToken"):
-    print("❌ 5paisa login failed!")
+    print("❌ 5paisa login failed:", response)
     sys.exit(1)
 
 print("5paisa client logged in successfully")
@@ -248,6 +253,7 @@ if hour >= 13:
         print("Strategy performance already calculated today")
 
 print("🎉 Updater finished successfully!")
+
 
 
 
