@@ -59,13 +59,6 @@ hour = ist_now.hour
 minute = ist_now.minute
 
 # market hours 9:15–15:30
-if weekday >= 5:
-    print("Weekend. Skipping.")
-    sys.exit(0)
-
-if (hour < 9) or (hour == 9 and minute < 15) or (hour > 15) or (hour == 15 and minute > 30):
-    print("Outside market hours. Skipping.")
-    sys.exit(0)
 
 print("Market open. Updating data.")
 
@@ -114,7 +107,7 @@ for stock, scrip in stocks.items():
             From=start_date,
             To=date.today().strftime("%Y-%m-%d")
         )
-
+        print(stock, "rows received:", len(data) if data else 0)
         if not data:
             print("No new data:", stock)
             continue
@@ -208,5 +201,6 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
