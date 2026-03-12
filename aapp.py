@@ -79,12 +79,12 @@ latest = pd.read_sql("""
 WITH recent AS (
     SELECT *
     FROM events
-    WHERE "Datetime" > NOW() - INTERVAL '2 day'
-     AND "Pred" IS NOT NULL
+    WHERE "Datetime" > NOW() - INTERVAL '3 day'
 )
 SELECT DISTINCT ON ("Stock")
     "Datetime","Stock","Pred","Return","TargetHit"
 FROM recent
+WHERE "Pred" IS NOT NULL
 ORDER BY "Stock","Datetime" DESC
 """, engine)
 
