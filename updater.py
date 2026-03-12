@@ -20,7 +20,7 @@ cred = {
 }
 
 client_code = "574598849"
-#mpin = "850762"
+pin = "850762"
 totp_key = "GU3TINJZHA2DSXZVKBDUWRKZ"
 
 # ====================== 5PAISA CLIENT INIT ======================
@@ -33,7 +33,8 @@ totp_code = totp.now()
 
 response = client.get_totp_session(
     client_code=client_code,
-    totp=totp_code
+    totp=totp_code,
+    pin = pin
 )
 print("5paisa login response:", response)
 
@@ -247,5 +248,6 @@ if hour >= 13:
         print("Strategy performance already calculated today")
 
 print("🎉 Updater finished successfully!")
+
 
 
