@@ -1,93 +1,64 @@
 import os
-import sys
-import time
 import pandas as pd
-from datetime import datetime, timedelta
 from sqlalchemy import create_engine, text
+from datetime import datetime, timedelta
+import sys
 
-# ====================== CONFIG ======================
+print("🚀 Starting Intraday Updater (GitHub Actions)")
+
+# ====================== TEST MODE (Change to False when live) ======================
+TEST_MODE = True   # ←←← SET THIS TO False when you want real market hour check
+
+# ====================== CONNECTION ======================
 CONNECTION_STRING = os.getenv("NEON_URL")
 if not CONNECTION_STRING:
-    print("❌ NEON_URL secret not found!")
+    print("❌ ERROR: NEON_URL secret is missing!")
     sys.exit(1)
 
-# ====================== IST TIME & MARKET HOURS ======================
+engine = create_engine(CONNECTION_STRING)
+print("✅ Connected to Neon")
+
+# ====================== IST TIME ======================
 def get_ist_now():
     utc_now = datetime.utcnow()
     ist_now = utc_now + timedelta(hours=5, minutes=30)
     return ist_now
 
-def is_market_open():
-    ist = get_ist_now()
-    if ist.weekday() >= 5:  # Saturday or Sunday
-        return False
-    hour = ist.hour
-    minute = ist.minute
-    # 9:15 AM to 3:30 PM IST
-    if (hour > 9 or (hour == 9 and minute >= 15)) and (hour < 15 or (hour == 15 and minute <= 30)):
-        return True
-    return False
+ist_now = get_ist_now()
+print(f"🕒 Current IST: {ist_now.strftime('%Y-%m-%d %H:%M:%S')}")
 
-# ====================== CONNECTION ======================
-engine = create_engine(CONNECTION_STRING, pool_pre_ping=True)
+# ====================== MARKET HOURS CHECK ======================
+weekday = ist_now.weekday()
+hour = ist_now.hour
+minute = ist_now.minute
 
-print(f"🕒 IST Time: {get_ist_now().strftime('%Y-%m-%d %H:%M:%S')}")
-print(f"📈 Market Open: {is_market_open()}")
+is_market_hour = TEST_MODE or (
+    weekday < 5 and 
+    (9 <= hour < 15 or (hour == 15 and minute <= 30))
+)
 
-if not is_market_open():
-    print("⏸️  Outside market hours. Skipping...")
+print(f"📍 Market Hours: {'TRUE (TEST MODE)' if TEST_MODE else 'TRUE' if is_market_hour else 'FALSE'}")
+
+if not is_market_hour:
+    print("⏸️  Outside market hours. Skipping run.")
     sys.exit(0)
 
-# ====================== YOUR NEW DATA CODE GOES HERE ======================
-# Replace this section with your actual code that generates new candle rows
-print("🔄 Fetching new candle data...")
+print("✅ Proceeding with update...")
 
-# EXAMPLE PLACEHOLDER (replace with your real code):
-# new_data = pd.read_csv("new_events.csv")   # or API call, calculation, etc.
-# new_data['Datetime'] = pd.to_datetime(new_data['Datetime'])
+# ====================== YOUR NEW DATA CODE ======================
+# ←←← REPLACE THIS BLOCK WITH YOUR REAL NEW ROWS CODE ←←←
+new_data = pd.DataFrame()   # ← CHANGE THIS
 
-# For testing, we use dummy data (remove this later)
-new_data = pd.DataFrame({
-    'Datetime': [get_ist_now()],
-    'Stock': ['NIFTY'],
-    'Pred': [0.65],
-    'Return': [0.002],
-    'TargetHit': [0]
-})
+if new_data.empty:
+    print("⚠️  No new data this run.")
+else:
+    new_data.to_sql('events', engine, if_exists='append', index=False, method='multi', chunksize=5000)
+    print(f"✅ Added {len(new_data):,} new rows")
 
-print(f"📊 Adding {len(new_data)} new rows...")
-
-# ====================== SAVE TO NEON ======================
-new_data.to_sql('events', engine, if_exists='append', index=False, method='multi', chunksize=5000)
-print("✅ New candles saved to Neon")
-
-# ====================== DAILY STRATEGY CALCULATION (after 1:30 PM) ======================
-ist = get_ist_now()
-if ist.hour >= 13 and ist.minute >= 30:   # after 1:30 PM IST
-    print("📈 Running daily strategy performance calculation...")
-    
-    # Your full strategy grid calculation goes here
-    # Example placeholder:
-    results = []
-    for prob_th in [0.65, 0.70, 0.75, 0.80]:
-        for rank_th in [0.65, 0.70, 0.75]:
-            for target in [0.5, 0.6, 0.7]:
-                for risk in [0.3, 0.4, 0.5]:
-                    if risk >= target: continue
-                    pnl = round((prob_th * 120) + (target * 80) - (risk * 60), 0)
-                    results.append({
-                        "date": ist.date(),
-                        "prob_th": prob_th,
-                        "rank_th": rank_th,
-                        "target_pct": target,
-                        "risk_pct": risk,
-                        "win_rate": 0.65,
-                        "total_trades": 50,
-                        "pnl": pnl
-                    })
-
-    perf_df = pd.DataFrame(results)
-    perf_df.to_sql('strategy_performance', engine, if_exists='append', index=False)
-    print(f"✅ Strategy performance saved for {ist.date()}")
+# ====================== DAILY STRATEGY CALCULATION ======================
+if hour >= 13:
+    print("🔄 Running daily strategy calculation...")
+    # ←←← YOUR STRATEGY GRID CODE HERE ←←←
+    print("✅ Strategy performance updated.")
 
 print("🎉 Updater finished successfully!")
