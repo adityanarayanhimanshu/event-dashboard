@@ -1,0 +1,12 @@
+name: Heartbeat (Keep repo active)
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # Every hour
+  workflow_dispatch:
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Heartbeat at $(date)"
