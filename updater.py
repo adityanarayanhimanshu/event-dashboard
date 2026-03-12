@@ -5,6 +5,8 @@ from sqlalchemy import create_engine
 from datetime import datetime, timedelta, date
 import pyotp
 from py5paisa import FivePaisaClient
+import joblib
+import numpy as np
 
 # ====================== IMPORT CONFIG ======================
 from config import cred, client_code, mpin, totp_key
@@ -49,7 +51,69 @@ print("5Paisa login successful")
 
 engine = create_engine(CONNECTION_STRING)
 print("Connected to Neon DB")
+########################################################
+model = joblib.load("intraday_quant_model.pkl")
+print("Model loaded")
+features = [
 
+"Sentiment",
+"Momentum5",
+"Momentum15",
+"Momentum30",
+"Momentum60",
+
+"ORBStrength",
+"ORBWeakness",
+
+"TimeBlock",
+"RelVolume",
+
+"Trend3",
+
+"Volatility15",
+"Volatility60",
+"Range15",
+
+"LiquidityVacuum",
+"VolatilityRegime",
+"OrderflowImbalance", 
+
+"VolumeSpike",
+"VolumeShock",
+"VWAPDeviation",
+"VWAPMomentum",
+"Acceleration",
+
+"PeerMomentum",
+"RelativeRank",
+    
+"SectorMomentum",   
+"RelativeStrengthSector",
+
+"RelativeStrengthMarketIndia",
+"RelativeStrengthMarketUS",
+
+"HighSweep",
+"LowSweep",
+"SweepStrength",
+"RecentHighSweeps",
+"RecentLowSweeps",
+
+"SP500_return",
+"NASDAQ_return",
+"CRUDE_return",
+"USDINR_return",
+
+"NiftyMomentum",
+"BankNiftyMomentum",
+
+
+
+"MarketBreadth",
+"MarketBreadthPressure",
+"LagMomentum",
+
+]
 # ====================== IST TIME ======================
 ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
 print("IST time:", ist_now)
@@ -242,8 +306,18 @@ for stock, scrip in stocks.items():
 # ====================== SAVE TO DATABASE ======================
 if new_frames:
 
-    df_new = pd.concat(new_frames,ignore_index=True)
+    df_new = pd.concat(new_frames, ignore_index=True)
 
+    # Run predictions
+    try:
+        X = df_new[features]
+        preds = model.predict_proba(X)[:,1]
+        df_new["Pred"] = preds
+    except Exception as e:
+        print("Prediction failed:", e)
+        df_new["Pred"] = None
+    
+    # Save once to database
     df_new.to_sql(
         "events",
         engine,
@@ -253,12 +327,13 @@ if new_frames:
         chunksize=5000
     )
 
-    print("Added rows:",len(df_new))
+    print("Added rows:", len(df_new))
 
 else:
 
     print("No new data")
 
+    
 # ====================== STRATEGY CALCULATION ======================
 if ist_now.hour >= 13:
 
@@ -310,6 +385,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
