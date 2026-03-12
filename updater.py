@@ -38,9 +38,13 @@ print("5Paisa login successful")
 # ====================== CONNECT DATABASE ======================
 CONNECTION_STRING = os.getenv("NEON_URL")
 
-if not CONNECTION_STRING:
-    print("NEON_URL secret missing")
+print("Login response:", response)
+
+if response is None:
+    print("Login failed")
     sys.exit(1)
+
+print("5Paisa login successful")
 
 engine = create_engine(CONNECTION_STRING)
 print("Connected to Neon DB")
@@ -203,3 +207,4 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
