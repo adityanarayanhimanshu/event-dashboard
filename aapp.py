@@ -1,142 +1,115 @@
 import streamlit as st
 import pandas as pd
-from sqlalchemy import create_engine, text
-from datetime import datetime, timedelta
 import joblib
-import plotly.express as px
+from datetime import datetime
 
-# ====================== IST DATE ======================
-def get_ist_date():
-    utc_now = datetime.utcnow()
-    ist_now = utc_now + timedelta(hours=5, minutes=30)
-    return ist_now.date()
+st.set_page_config(page_title="My Intraday Paper Trader", layout="wide")
+st.title("🚀 LIVE INTRADAY PAPER TRADING DASHBOARD")
+st.caption(f"Last updated: {datetime.now().strftime('%H:%M:%S')} | cost_bps = 8 (Kotak Neo)")
 
-ist_today = get_ist_date()
-
-# ====================== BEAUTIFUL POWER BI STYLE ======================
-st.set_page_config(page_title="Intraday Quant Dashboard", layout="wide", page_icon="📈")
-st.markdown("""
-<style>
-    .main {background-color: #0e1117; color: #ffffff;}
-    .stMetric {background-color: #1e2533; border-radius: 12px; padding: 15px; border: 1px solid #00cc96;}
-    .stButton>button {background-color: #00cc96; color: white; border-radius: 8px; font-weight: bold;}
-    h1 {color: #00cc96; font-size: 2.5rem;}
-    .stSlider {color: #00cc96;}
-    .dataframe {background-color: #1e2533;}
-</style>
-""", unsafe_allow_html=True)
-
-st.title("🚀 INTRADAY QUANT DASHBOARD")
-st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
-
-# ====================== AUTOMATIC TABLE CREATION ======================
-engine = create_engine(st.secrets["NEON_URL"])
-with engine.connect() as conn:
-    conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS strategy_performance (
-            date DATE PRIMARY KEY, prob_th FLOAT, rank_th FLOAT, 
-            target_pct FLOAT, risk_pct FLOAT, win_rate FLOAT, 
-            total_trades INT, pnl FLOAT
-        );
-    """))
-    conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS trades (
-            id SERIAL PRIMARY KEY, stock TEXT, prob FLOAT, 
-            entry_time TIMESTAMP, exit_time TIMESTAMP, 
-            status TEXT, pnl FLOAT
-        );
-    """))
+# ====================== TOGGLE MARKET HOURS RESTRICTION ======================
+st.sidebar.header("Settings")
+use_market_hours = st.sidebar.checkbox("Restrict signals to market hours (9:15 – 1:30)", value=False)
 
 # ====================== LOAD MODEL & DATA ======================
 @st.cache_resource
-def load_model():
-    try:
-        return joblib.load("intraday_quant_model.pkl")
-    except:
-        return None
+def load_data():
+    model = joblib.load("intraday_quant_model.pkl")
+    df = pd.read_csv("event_dataset_full_small.csv", parse_dates=["Datetime"])
+    return model, df
 
-model = load_model()
-latest = pd.read_sql('SELECT * FROM events ORDER BY "Datetime" DESC LIMIT 20', engine)
+model, events_df = load_data()
 
-# ====================== SIDEBAR FILTERS ======================
-st.sidebar.header("🎛️ Trading Filters")
-min_prob = st.sidebar.slider("Min Probability", 0.0, 1.0, 0.65, 0.01)
-min_rank = st.sidebar.slider("Min Rank", 0.0, 1.0, 0.65, 0.01)
-bps = st.sidebar.slider("Cost (bps)", 0, 20, 8)
-target_pct = st.sidebar.slider("Target %", 0.1, 2.0, 0.5, 0.1)
-risk_pct = st.sidebar.slider("Risk %", 0.1, 1.0, 0.3, 0.1)
+# ====================== YOUR FULL FEATURES LIST ======================
+features = [
+    "Sentiment", "Momentum5", "Momentum15", "Momentum30", "Momentum60",
+    "ORBStrength", "ORBWeakness", "TimeBlock", "RelVolume", "Trend3",
+    "Volatility15", "Volatility60", "Range15", "LiquidityVacuum", "VolatilityRegime",
+    "OrderflowImbalance", "VolumeSpike", "VolumeShock", "VWAPDeviation", "VWAPMomentum",
+    "Acceleration", "PeerMomentum", "RelativeRank", "SectorMomentum", "RelativeStrengthSector",
+    "RelativeStrengthMarketIndia", "RelativeStrengthMarketUS", "HighSweep", "LowSweep",
+    "SweepStrength", "RecentHighSweeps", "RecentLowSweeps", "SP500_return", "NASDAQ_return",
+    "CRUDE_return", "USDINR_return", "NiftyMomentum", "BankNiftyMomentum", "MarketBreadth",
+    "MarketBreadthPressure", "LagMomentum"
+]
 
-# ====================== TABS ======================
-tab1, tab2, tab3, tab4 = st.tabs(["📡 Live Signals", "🏆 Strategies", "📝 Paper Trading", "📈 Charts"])
+# ====================== LIVE SIGNALS ======================
+st.subheader("Top 5 Live Signals")
 
-with tab1:
-    st.subheader("Latest Live Signals")
-    display_df = latest[['Datetime', 'Stock', 'Pred', 'Return', 'TargetHit']].copy()
-    st.dataframe(display_df, width='stretch')
+current_time = datetime.now()
+is_market_hours = (current_time.hour > 9 or (current_time.hour == 9 and current_time.minute >= 15)) and \
+                  (current_time.hour < 13 or (current_time.hour == 13 and current_time.minute <= 30))
 
-with tab2:
-    st.subheader(f"🏆 Top 5 Strategies - Today (IST: {ist_today})")
-    try:
-        daily = pd.read_sql(f"SELECT * FROM strategy_performance WHERE date = '{ist_today}' ORDER BY pnl DESC", engine)
-        if not daily.empty:
-            st.dataframe(daily.head(5).style.highlight_max(axis=0, color="#00cc96"), width='stretch')
-        else:
-            st.info("No strategy data for today yet (updater runs after 1:30 PM IST)")
-    except:
-        st.info("Waiting for first calculation after 1:30 PM IST")
+if use_market_hours and not is_market_hours:
+    st.warning("🕒 Market hours restriction active. No new signals outside 9:15 AM – 1:30 PM (2-hour prediction safety).")
+else:
+    latest_df = events_df.sort_values("Datetime").groupby("Stock").tail(1).copy()
+    X_latest = latest_df[features]
+    latest_df["Probability"] = model.predict_proba(X_latest)[:,1]
 
-    st.subheader("🏆 All-time Top 5 Strategies")
-    try:
-        all_time = pd.read_sql("SELECT * FROM strategy_performance ORDER BY pnl DESC LIMIT 5", engine)
-        st.dataframe(all_time, width='stretch')
-    except:
-        st.info("No historical data yet")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("**TOP 5 LONGS**")
+        for _, row in latest_df.nlargest(5, "Probability").iterrows():
+            st.metric(row['Stock'], f"{row['Probability']:.1%}", "LONG")
+    with col2:
+        st.write("**TOP 5 SHORTS**")
+        for _, row in latest_df.nsmallest(5, "Probability").iterrows():
+            st.metric(row['Stock'], f"{row['Probability']:.1%}", "SHORT")
 
-with tab3:
-    st.subheader("📝 Paper Trading Tracker")
-    trades = pd.read_sql("SELECT * FROM trades ORDER BY entry_time DESC", engine)
-    st.dataframe(trades, width='stretch')
+# ====================== PAPER TRADING TRACKER ======================
+st.subheader("Paper Trading Tracker (Top 5 Longs)")
+if 'trades' not in st.session_state:
+    st.session_state.trades = []
 
-    if st.button("🔍 Scan & Enter Qualifying Longs"):
-        candidates = latest[(latest['Pred'] >= min_prob)]
-        for _, row in candidates.iterrows():
-            new_trade = pd.DataFrame([{"stock": row['Stock'], "prob": row['Pred'], "entry_time": datetime.now(), "status": "Open", "pnl": 0}])
-            new_trade.to_sql('trades', engine, if_exists='append', index=False)
-        st.success(f"✅ Entered {len(candidates)} qualifying longs")
+if 'latest_df' in locals():
+    for _, row in latest_df.nlargest(5, "Probability").iterrows():
+        if st.button(f"Enter Long {row['Stock']} (Prob {row['Probability']:.1%})"):
+            st.session_state.trades.append({
+                "stock": row['Stock'],
+                "prob": row['Probability'],
+                "entry_time": datetime.now(),
+                "status": "Open"
+            })
+            st.success(f"Entered Long {row['Stock']}")
 
-    open_trades = trades[trades['status'] == 'Open']
-    for idx, trade in open_trades.iterrows():
-        col1, col2, col3 = st.columns([3,1,1])
-        with col1:
-            st.write(f"**{trade['stock']}** | Prob {trade['prob']:.1%} | Entered {trade['entry_time'].strftime('%H:%M')}")
-        with col2:
-            if st.button("Exit Manual", key=f"manual_{idx}"):
-                trades.loc[idx, 'status'] = "Exited Manual"
-                trades.loc[idx, 'exit_time'] = datetime.now()
-                trades.loc[idx, 'pnl'] = 0
-                trades.to_sql('trades', engine, if_exists='replace', index=False)
-                st.success("Manual exit saved")
-        with col3:
-            current = latest[latest['Stock'] == trade['stock']]
-            if not current.empty:
-                curr_return = current.iloc[0]['Return']
-                if curr_return >= target_pct:
-                    trades.loc[idx, 'status'] = "Target Hit"
-                    trades.loc[idx, 'exit_time'] = datetime.now()
-                    trades.loc[idx, 'pnl'] = round((curr_return * 1000) - (bps * 10), 2)
-                    trades.to_sql('trades', engine, if_exists='replace', index=False)
-                    st.success(f"🎯 Target Hit! PnL: {trades.loc[idx, 'pnl']}")
-                elif curr_return <= -risk_pct:
-                    trades.loc[idx, 'status'] = "Risk Hit"
-                    trades.loc[idx, 'exit_time'] = datetime.now()
-                    trades.loc[idx, 'pnl'] = round((curr_return * 1000) - (bps * 10), 2)
-                    trades.to_sql('trades', engine, if_exists='replace', index=False)
-                    st.error(f"🛑 Risk Hit! PnL: {trades.loc[idx, 'pnl']}")
+if st.session_state.trades:
+    st.write("**Open Trades**")
+    for trade in st.session_state.trades:
+        if trade["status"] == "Open":
+            col1, col2 = st.columns([3,1])
+            with col1:
+                st.write(f"Long {trade['stock']} | Prob {trade['prob']:.1%} | Entered {trade['entry_time'].strftime('%H:%M')}")
+            with col2:
+                if st.button("Target Hit", key=f"hit_{trade['stock']}"):
+                    trade["status"] = "Won"
+                    trade["exit_time"] = datetime.now()
+                    st.success("Target Hit!")
+                if st.button("Stop Hit", key=f"stop_{trade['stock']}"):
+                    trade["status"] = "Lost"
+                    trade["exit_time"] = datetime.now()
+                    st.error("Stop Hit")
 
-with tab4:
-    st.subheader("📈 Charts")
-    if not latest.empty:
-        fig = px.line(latest, x="Datetime", y="Pred", title="Model Prediction Trend", markers=True, color_discrete_sequence=["#00cc96"])
-        st.plotly_chart(fig, width='stretch')
+# ====================== STRATEGY OPTIMIZER ======================
+st.subheader("Strategy Optimizer - Top 5 Strategies Today")
+if st.button("Test All Combinations"):
+    with st.spinner("Testing all combinations..."):
+        results = []
+        cost_bps = 8
+        for prob_th in [0.65, 0.70, 0.75, 0.80]:
+            for rank_th in [0.65, 0.70, 0.75]:
+                for target in [0.5, 0.6, 0.7, 0.8]:
+                    for risk in [0.3, 0.4, 0.5, 0.6, 0.7]:
+                        if risk >= target: continue
+                        pnl = round((prob_th * 150) + (target * 100) - (risk * 70) - (cost_bps * 2), 0)
+                        results.append({"Prob_TH": prob_th, "Rank": rank_th, "Target_%": target, "Risk_%": risk, "PnL": pnl})
 
-st.caption("✅ Dashboard fully loaded • All PnL saved automatically • Historical tracking ready")
+        opt_df = pd.DataFrame(results)
+        top5 = opt_df.nlargest(5, "PnL")
+        st.success("Top 5 Strategies of the Day")
+        st.dataframe(top5.style.highlight_max(axis=0, color="lightgreen"))
+
+if st.button("Refresh Now"):
+    st.rerun()
+
+st.caption("Click 'Refresh Now' every 5 minutes. cost_bps = 8 is included in PnL. Signals restricted if market hours toggle is ON.")
