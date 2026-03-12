@@ -54,9 +54,27 @@ print("Connected to Neon DB")
 ist_now = datetime.utcnow() + timedelta(hours=5, minutes=30)
 print("IST time:", ist_now)
 
-weekday = ist_now.weekday()
-hour = ist_now.hour
-minute = ist_now.minute
+# ====================== MARKET TIME FILTER ======================
+FORCE_RUN = True   # set True if you want to force run anytime
+market_open = (9, 15)
+market_close = (15, 30)
+
+current_time = (ist_now.hour, ist_now.minute)
+
+is_weekend = ist_now.weekday() >= 5
+before_open = current_time < market_open
+after_close = current_time > market_close
+
+if not FORCE_RUN:
+    if is_weekend:
+        print("Weekend — skipping update")
+        sys.exit(0)
+
+    if before_open or after_close:
+        print("Outside market hours — skipping update")
+        sys.exit(0)
+
+print("Market open or FORCE_RUN enabled — proceeding...")
 
 # market hours 9:15–15:30
 
@@ -69,17 +87,100 @@ os.makedirs(DATA_PATH, exist_ok=True)
 # ====================== STOCK LIST ======================
 stocks = {
     "RELIANCE":2885,
-    "TCS":11536,
-    "HDFCBANK":1333,
-    "INFY":1594,
-    "ICICIBANK":4963,
-    "HINDUNILVR":1394,
-    "ITC":1660,
-    "SBIN":3045,
-    "BHARTIARTL":10604,
-    "KOTAKBANK":1922,
-    "LT":11483,
-    "AXISBANK":5900
+"TCS":11536,
+"HDFCBANK":1333,
+"INFY":1594,
+"ICICIBANK":4963,
+"HINDUNILVR":1394,
+"ITC":1660,
+"SBIN":3045,
+"BHARTIARTL":10604,
+"KOTAKBANK":1922,
+"LT":11483,
+"AXISBANK":5900,
+"ASIANPAINT":236,
+"MARUTI":10999,
+"TITAN":3506,
+"BAJFINANCE":317,
+"BAJAJFINSV":16675,
+"HCLTECH":7229,
+"WIPRO":3787,
+"ULTRACEMCO":11532,
+
+"ONGC":2475,
+"TATASTEEL":3499,
+"JSWSTEEL":11723,
+"HINDALCO":1363,
+"COALINDIA":20374,
+"NTPC":11630,
+"POWERGRID":14977,
+"ADANIENT":25,
+"ADANIPORTS":15083,
+"ADANIGREEN":3563,
+
+"GRASIM":1232,
+"DIVISLAB":10940,
+"DRREDDY":881,
+"SUNPHARMA":3351,
+"CIPLA":694,
+"APOLLOHOSP":157,
+"MAXHEALTH":22377,
+"TORNTPHARM":3518,
+"ALKEM":11703,
+"ZYDUSLIFE":7929,
+
+"TECHM":13538,
+"LTIM":17818,
+"PERSISTENT":18365,
+"MPHASIS":4503,
+"COFORGE":11543,
+
+"NESTLEIND":17963,
+"BRITANNIA":547,
+"DABUR":772,
+"GODREJCP":10099,
+"COLPAL":15141,
+"MARICO":4067,
+
+"ICICIPRULI":18652,
+"SBILIFE":21808,
+"HDFCLIFE":467,
+"BAJAJHLDNG":7806,
+
+"DLF":14732,
+"LODHA":24948,
+"OBEROIRLTY":20242,
+
+"INDIGO":11195,
+"IRCTC":13611,
+"ZOMATO":5097,
+"PAYTM":3045,
+
+"SIEMENS":3150,
+"ABB":13,
+"BHEL":438,
+"BEL":383,
+"HAL":2303,
+
+"PAGEIND":14413,
+"TRENT":1964,
+"NYKAA":6545,
+"VOLTAS":3718,
+
+"GAIL":4717,
+"PETRONET":11351,
+"IGL":11262,
+"MGL":17534,
+
+"SRF":3273,
+"PIIND":24184,
+"DEEPAKNTR":19943,
+"AARTIIND":21238,
+
+"INDUSTOWER":29135,
+"TATACOMM":3721,
+"NAUKRI":13751,
+"POLYCAB":9590
 }
 
 new_frames = []
@@ -90,7 +191,7 @@ for stock, scrip in stocks.items():
     try:
 
         file = f"{DATA_PATH}/{stock}.parquet"
-        start_date = "2025-01-01"
+        start_date = (date.today() - timedelta(days=60)).strftime("%Y-%m-%d")
 
         if os.path.exists(file):
             old = pd.read_parquet(file)
@@ -108,7 +209,15 @@ for stock, scrip in stocks.items():
             To=date.today().strftime("%Y-%m-%d")
         )
         print(stock, "rows received:", len(data) if data else 0)
-        if not data:
+        if data is None:
+            print("No response:", stock)
+            continue
+        
+        print(stock, "rows received:", len(data))
+        
+        df = pd.DataFrame(data)
+        
+        if df.empty:
             print("No new data:", stock)
             continue
 
@@ -119,7 +228,7 @@ for stock, scrip in stocks.items():
 
         if os.path.exists(file):
             old = pd.read_parquet(file)
-            df = pd.concat([old, df]).drop_duplicates(subset=["Datetime"])
+            df = pd.concat([old, df]).drop_duplicates(subset=["Stock","Datetime"])
 
         df.to_parquet(file,index=False)
 
@@ -201,6 +310,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
