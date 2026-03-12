@@ -9,3 +9,4 @@ pyotp
 transformers
 numpy
 scikit-learn
+lightgbm
