@@ -1,5 +1,10 @@
+streamlit
 pandas
 sqlalchemy
 psycopg2-binary
 joblib
 plotly
+streamlit
+pyotp
+transformers
+numpy
