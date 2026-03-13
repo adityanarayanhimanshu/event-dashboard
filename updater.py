@@ -273,7 +273,14 @@ for stock, scrip in stocks.items():
             To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
         )
         import json
-        data = json.loads(data)
+
+        if isinstance(data, str):
+            data = json.loads(data)
+        
+        if "data" in data:
+            data = data["data"]
+        
+        df = pd.DataFrame(data)
         print(stock, "rows received:", 0 if data is None else len(data))
         if data is None:
             print("No response:", stock)
@@ -281,13 +288,13 @@ for stock, scrip in stocks.items():
         
         print(stock, "rows received:", len(data))
         
-        df = pd.DataFrame(data["data"])
+        df = pd.DataFrame(data)
         
         if df.empty:
             print("No new data:", stock)
             continue
 
-        df = pd.DataFrame(data["data"])
+        df = pd.DataFrame(data)
 
         df["Stock"] = stock
         df["Datetime"] = pd.to_datetime(df["Datetime"])
@@ -406,6 +413,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
