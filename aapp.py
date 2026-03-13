@@ -79,6 +79,11 @@ model = load_model()
 # Clear Cache
 st.cache_data.clear()
 
+# ====================== TODAY TIME WINDOW ======================
+
+today_start = ist_now.replace(hour=0, minute=0, second=0, microsecond=0)
+tomorrow_start = today_start + timedelta(days=1)
+
 latest = pd.read_sql_query(
 """
 SELECT DISTINCT ON ("Stock")
