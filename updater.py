@@ -275,8 +275,12 @@ for stock, scrip in stocks.items():
         print(stock, "RAW API RESPONSE TYPE:", type(data))
         print(stock, "RAW API RESPONSE:", str(data)[:200])
 
-        if not data:
-            print(stock, "API returned EMPTY")
+        if data is None:
+            print(stock, "API returned NONE")
+            continue
+        
+        if isinstance(data, pd.DataFrame) and data.empty:
+            print(stock, "API returned EMPTY DataFrame")
             continue
 
         if isinstance(data, str):
@@ -284,24 +288,13 @@ for stock, scrip in stocks.items():
             if data.strip() == "":
                 print(stock, "API returned BLANK STRING")
                 continue
-    
-            import json
-            data = json.loads(data)
-    
-        print(stock, "JSON parsed successfully")
 
         if isinstance(data, dict):
 
             if "data" not in data:
                 print(stock, "API response missing 'data' key:", data)
                 continue
-        
-            data = data["data"]
-
-
-        if not data:
-            print(stock, "API returned NO CANDLE DATA")
-            continue
+            
 
         df = pd.DataFrame(data)
 
@@ -311,12 +304,6 @@ for stock, scrip in stocks.items():
             print(stock, "API returned empty response")
             continue
         
-        
-        if isinstance(data, str):
-            data = json.loads(data)
-        
-        if "data" in data:
-            data = data["data"]
         
         if not data:
             print(stock, "No candle data")
