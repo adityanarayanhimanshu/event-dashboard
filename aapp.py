@@ -79,14 +79,22 @@ model = load_model()
 # Clear Cache
 st.cache_data.clear()
 
-latest = pd.read_sql_query("""
-
+latest = pd.read_sql_query(
+"""
 SELECT DISTINCT ON ("Stock")
     "Datetime","Stock","Pred","Return","TargetHit"
 FROM events
 WHERE "Pred" IS NOT NULL
+AND "Datetime" >= %(today_start)s
+AND "Datetime" < %(tomorrow_start)s
 ORDER BY "Stock","Datetime" DESC
-""", engine)
+""",
+engine,
+params={
+    "today_start": today_start,
+    "tomorrow_start": tomorrow_start
+}
+)
 
 # ====================== SIDEBAR FILTERS ======================
 st.sidebar.header("🎛️ Trading Filters")
@@ -101,7 +109,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["📡 Live Signals", "🏆 Strategies", 
 
 with tab1:
     st.subheader("All Stocks - Latest Probability (Descending by Pred)")
-    full_signals = latest.sort_values(["Datetime","Pred"], ascending=[False, False])
+    full_signals = latest.sort_values(["Datetime","Pred"], ascending=False)
     st.dataframe(full_signals[['Stock', 'Pred', 'Return', 'TargetHit']], width='stretch')
 
     col_long, col_short = st.columns(2)
