@@ -281,37 +281,36 @@ for stock, scrip in stocks.items():
 
         if isinstance(data, str):
 
-        if data.strip() == "":
-            print(stock, "API returned BLANK STRING")
-            continue
+            if data.strip() == "":
+                print(stock, "API returned BLANK STRING")
+                continue
     
-        import json
-        data = json.loads(data)
+            import json
+            data = json.loads(data)
     
         print(stock, "JSON parsed successfully")
 
         if isinstance(data, dict):
 
-        if "data" not in data:
-            print(stock, "API response missing 'data' key:", data)
-            continue
-    
-        data = data["data"]
+            if "data" not in data:
+                print(stock, "API response missing 'data' key:", data)
+                continue
+        
+            data = data["data"]
 
 
         if not data:
-        print(stock, "API returned NO CANDLE DATA")
-        continue
+            print(stock, "API returned NO CANDLE DATA")
+            continue
 
         df = pd.DataFrame(data)
 
         print(stock, "DataFrame rows:", len(df))
         
-        if not data:
+        if df.empty:
             print(stock, "API returned empty response")
             continue
         
-        import json
         
         if isinstance(data, str):
             data = json.loads(data)
