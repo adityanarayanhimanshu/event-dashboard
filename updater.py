@@ -268,7 +268,7 @@ for stock, scrip in stocks.items():
             Exch="N",
             ExchangeSegment="C",
             ScripCode=scrip,
-            time="5m",
+            time="5",
             From=start_date,
             To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
         )
@@ -404,6 +404,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
