@@ -276,8 +276,8 @@ for stock, scrip in stocks.items():
         print(stock, "RAW API RESPONSE:", str(data)[:200])
 
         if not data:
-        print(stock, "API returned EMPTY")
-        continue
+            print(stock, "API returned EMPTY")
+            continue
 
         if isinstance(data, str):
 
