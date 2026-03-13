@@ -260,7 +260,7 @@ for stock, scrip in stocks.items():
             last_time = pd.to_datetime(old["Datetime"]).max()
         
             # fetch slightly earlier to avoid missing candles
-            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d")
+            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
         
         print(stock, "fetching from", start_date)
 
@@ -404,6 +404,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
