@@ -405,9 +405,9 @@ if new_frames:
         
         print("Added rows:", len(df_new))
         
-        else:
-        
-            print("No new data")
+    else:
+    
+        print("No new data")
 
     
 # ====================== STRATEGY CALCULATION ======================
