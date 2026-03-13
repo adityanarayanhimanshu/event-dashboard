@@ -268,7 +268,7 @@ for stock, scrip in stocks.items():
             Exch="N",
             ExchangeSegment="C",
             ScripCode=scrip,
-            time="5",
+            time="5m",
             From=start_date,
             To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
         )
