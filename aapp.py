@@ -80,14 +80,10 @@ model = load_model()
 st.cache_data.clear()
 
 latest = pd.read_sql_query("""
-WITH recent AS (
-    SELECT *
-    FROM events
-    WHERE "Datetime" > NOW() - INTERVAL '3 day'
-)
+
 SELECT DISTINCT ON ("Stock")
     "Datetime","Stock","Pred","Return","TargetHit"
-FROM recent
+FROM events
 WHERE "Pred" IS NOT NULL
 ORDER BY "Stock","Datetime" DESC
 """, engine)
