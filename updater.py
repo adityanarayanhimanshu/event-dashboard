@@ -272,29 +272,30 @@ for stock, scrip in stocks.items():
             From=start_date,
             To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
         )
+        
+        if not data:
+            print(stock, "API returned empty response")
+            continue
+        
         import json
-
+        
         if isinstance(data, str):
             data = json.loads(data)
         
         if "data" in data:
             data = data["data"]
         
-        df = pd.DataFrame(data)
-        print(stock, "rows received:", 0 if data is None else len(data))
-        if data is None:
-            print("No response:", stock)
+        if not data:
+            print(stock, "No candle data")
             continue
         
-        print(stock, "rows received:", len(data))
-        
         df = pd.DataFrame(data)
+
+        print(stock, "rows received:", len(df))
         
         if df.empty:
             print("No new data:", stock)
             continue
-
-        df = pd.DataFrame(data)
 
         df["Stock"] = stock
         df["Datetime"] = pd.to_datetime(df["Datetime"])
