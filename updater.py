@@ -272,6 +272,40 @@ for stock, scrip in stocks.items():
             From=start_date,
             To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
         )
+        print(stock, "RAW API RESPONSE TYPE:", type(data))
+        print(stock, "RAW API RESPONSE:", str(data)[:200])
+
+        if not data:
+        print(stock, "API returned EMPTY")
+        continue
+
+        if isinstance(data, str):
+
+        if data.strip() == "":
+            print(stock, "API returned BLANK STRING")
+            continue
+    
+        import json
+        data = json.loads(data)
+    
+        print(stock, "JSON parsed successfully")
+
+        if isinstance(data, dict):
+
+        if "data" not in data:
+            print(stock, "API response missing 'data' key:", data)
+            continue
+    
+        data = data["data"]
+
+
+        if not data:
+        print(stock, "API returned NO CANDLE DATA")
+        continue
+
+        df = pd.DataFrame(data)
+
+        print(stock, "DataFrame rows:", len(df))
         
         if not data:
             print(stock, "API returned empty response")
