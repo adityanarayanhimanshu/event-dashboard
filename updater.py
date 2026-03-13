@@ -260,7 +260,7 @@ for stock, scrip in stocks.items():
             last_time = pd.to_datetime(old["Datetime"]).max()
         
             # fetch slightly earlier to avoid missing candles
-            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d")
         
         print(stock, "fetching from", start_date)
 
@@ -270,7 +270,7 @@ for stock, scrip in stocks.items():
             ScripCode=scrip,
             time="5",
             From=start_date,
-            To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+            To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
         )
         import json
         data = json.loads(data)
@@ -406,6 +406,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
