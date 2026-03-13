@@ -334,48 +334,80 @@ if new_frames:
     df_new = pd.concat(new_frames, ignore_index=True)
 
     # Run predictions
-    try:
-        X = df_new[features]
+    
         # ====================== MODEL PREDICTIONS ======================
-
-        preds = model.predict_proba(X)[:,1]
         
-        # Raw prediction
+    try:
+    
+        df_new = df_new.sort_values(["Stock", "Datetime"])
+    
+        preds = []
+    
+        # Sequential prediction to avoid look-ahead bias
+        for stock, g in df_new.groupby("Stock"):
+    
+            g = g.sort_values("Datetime")
+    
+            stock_preds = []
+    
+            for i in range(len(g)):
+    
+                g_slice = g.iloc[: i + 1]
+    
+                X_slice = g_slice[feature_cols]
+    
+                pred = model.predict_proba(X_slice.tail(1))[:,1][0]
+    
+                stock_preds.append(pred)
+    
+            preds.extend(stock_preds)
+    
         df_new["Pred_raw"] = preds
-        
-        # Smooth prediction
+    
+        # ====================== SMOOTH PREDICTIONS ======================
+    
         df_new["Pred"] = (
             df_new.sort_values("Datetime")
             .groupby("Stock")["Pred_raw"]
             .transform(lambda x: x.rolling(3, min_periods=1).mean())
         )
-        
+    
         # ====================== TIME OF DAY ADJUSTMENT ======================
-        
+    
         if ist_now.hour < 10:
             df_new["Pred"] *= 0.95
-        
+    
         elif ist_now.hour > 14:
             df_new["Pred"] *= 1.05
-    except Exception as e:
-        print("Prediction failed:", e)
-        df_new["Pred"] = None
     
-    # Save once to database
-    df_new.to_sql(
-        "events",
-        engine,
-        if_exists="append",
-        index=False,
-        method="multi",
-        chunksize=5000
-    )
-
-    print("Added rows:", len(df_new))
-
-else:
-
-    print("No new data")
+    except Exception as e:
+    
+        print("Prediction failed:", e)
+    
+        df_new["Pred"] = None
+        
+        
+        # ====================== DUPLICATE PROTECTION ======================
+        
+        df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
+        
+        
+        # ====================== SAVE TO DATABASE ======================
+        
+        df_new.to_sql(
+            "events",
+            engine,
+            if_exists="append",
+            index=False,
+            method="multi",
+            chunksize=5000
+        )
+        
+        print("Added rows:", len(df_new))
+        
+        else:
+        
+            print("No new data")
 
     
 # ====================== STRATEGY CALCULATION ======================
