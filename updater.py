@@ -278,10 +278,7 @@ for stock, scrip in stocks.items():
         if data is None:
             print(stock, "API returned NONE")
             continue
-        
-        if isinstance(data, pd.DataFrame) and data.empty:
-            print(stock, "API returned EMPTY DataFrame")
-            continue
+
 
         if isinstance(data, str):
 
@@ -295,19 +292,11 @@ for stock, scrip in stocks.items():
                 print(stock, "API response missing 'data' key:", data)
                 continue
             
-
-        df = pd.DataFrame(data)
-
-        print(stock, "DataFrame rows:", len(df))
         
         if df.empty:
             print(stock, "API returned empty response")
             continue
-        
-        
-        if not data:
-            print(stock, "No candle data")
-            continue
+
         
         df = pd.DataFrame(data)
 
