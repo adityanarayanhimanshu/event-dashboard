@@ -272,6 +272,8 @@ for stock, scrip in stocks.items():
             From=start_date,
             To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
         )
+        import json
+        data = json.loads(data)
         print(stock, "rows received:", 0 if data is None else len(data))
         if data is None:
             print("No response:", stock)
@@ -404,6 +406,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
