@@ -279,13 +279,13 @@ for stock, scrip in stocks.items():
         
         print(stock, "rows received:", len(data))
         
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(data["data"])
         
         if df.empty:
             print("No new data:", stock)
             continue
 
-        df = pd.DataFrame(data)
+        df = pd.DataFrame(data["data"])
 
         df["Stock"] = stock
         df["Datetime"] = pd.to_datetime(df["Datetime"])
@@ -404,6 +404,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
 
 
 
