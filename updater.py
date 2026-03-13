@@ -315,7 +315,13 @@ for stock, scrip in stocks.items():
 
         df.to_parquet(file,index=False)
 
-        new_frames.append(df)
+        df.to_sql(
+            "stock_data",
+            engine,
+            if_exists="append",
+            index=False,
+            method="multi"
+        )
 
         print(stock,"saved")
 
