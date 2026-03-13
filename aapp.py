@@ -81,8 +81,6 @@ st.cache_data.clear()
 
 # ====================== TODAY TIME WINDOW ======================
 
-today_start = ist_now.replace(hour=0, minute=0, second=0, microsecond=0)
-tomorrow_start = today_start + timedelta(days=1)
 
 latest = pd.read_sql_query(
 """
@@ -90,15 +88,13 @@ SELECT DISTINCT ON ("Stock")
     "Datetime","Stock","Pred","Return","TargetHit"
 FROM events
 WHERE "Pred" IS NOT NULL
-AND "Datetime" >= %(today_start)s
-AND "Datetime" < %(tomorrow_start)s
+AND "Datetime" >= (
+    SELECT MAX(DATE("Datetime"))
+    FROM events
+)
 ORDER BY "Stock","Datetime" DESC
 """,
-engine,
-params={
-    "today_start": today_start,
-    "tomorrow_start": tomorrow_start
-}
+engine
 )
 
 # ====================== SIDEBAR FILTERS ======================
