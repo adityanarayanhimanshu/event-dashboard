@@ -52,7 +52,25 @@ print("5Paisa login successful")
 engine = create_engine(CONNECTION_STRING,pool_pre_ping=True)
 print("Connected to Neon DB")
 ########################################################
-model = joblib.load("intraday_quant_model.pkl")
+model = joblib.load("model.pkl")
+
+# ===== DEBUG START =====
+print("MODEL FEATURES:")
+print(model.feature_names_in_)
+
+print("LIVE FEATURES:")
+print(df_new.columns.tolist())
+
+print("DATA SAMPLE:")
+print(df_new.head())
+
+print("DATA STATS:")
+print(df_new.describe())
+# ===== DEBUG END =====
+
+X = df_new[model.feature_names_in_]
+
+df_new["Pred"] = model.predict_proba(X)[:,1]
 print("Model loaded")
 features = [
 
