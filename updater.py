@@ -258,12 +258,7 @@ for stock, scrip in stocks.items():
         WHERE "Stock" = '{stock}'
         """, engine).iloc[0,0]
         
-        if last_time is None:
-            start_date = "2026-03-10"
-        else:
-            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d")
-        
-        print(stock, "fetching from", start_date)
+        start_date = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
 
         data = client.historical_data(
             Exch="N",
