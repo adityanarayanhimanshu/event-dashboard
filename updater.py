@@ -325,6 +325,180 @@ for stock, scrip in stocks.items():
 if new_frames:
 
     df_new = pd.concat(new_frames, ignore_index=True)
+    # ================= LOAD RECENT HISTORY =================
+
+    history = pd.read_sql(
+    """
+    SELECT *
+    FROM events
+    WHERE "Datetime" > NOW() - INTERVAL '3 days'
+    """,
+    engine
+    )
+    
+    if not history.empty:
+        history["Datetime"] = pd.to_datetime(history["Datetime"])
+    
+        df_new = pd.concat([history, df_new])
+    
+        df_new = df_new.sort_values(["Stock","Datetime"])
+    # ================= FEATURE ENGINEERING =================
+
+    df_new = df_new.sort_values(["Stock","Datetime"])
+    
+    # Basic returns
+    df_new["Return"] = df_new.groupby("Stock")["Close"].pct_change()
+    
+    # Momentum
+    df_new["Momentum5"] = df_new.groupby("Stock")["Close"].pct_change(5)
+    df_new["Momentum15"] = df_new.groupby("Stock")["Close"].pct_change(15)
+    df_new["Momentum30"] = df_new.groupby("Stock")["Close"].pct_change(30)
+    df_new["Momentum60"] = df_new.groupby("Stock")["Close"].pct_change(60)
+    
+    # Trend
+    df_new["Trend3"] = df_new.groupby("Stock")["Close"].pct_change(3)
+    
+    # Volatility
+    df_new["Volatility15"] = (
+        df_new.groupby("Stock")["Close"]
+        .pct_change()
+        .rolling(15)
+        .std()
+    )
+    
+    df_new["Volatility60"] = (
+        df_new.groupby("Stock")["Close"]
+        .pct_change()
+        .rolling(60)
+        .std()
+    )
+    
+    # Range
+    df_new["Range15"] = (
+        df_new.groupby("Stock")["High"]
+        .rolling(15).max().reset_index(level=0,drop=True)
+        -
+        df_new.groupby("Stock")["Low"]
+        .rolling(15).min().reset_index(level=0,drop=True)
+    ) / df_new["Close"]
+    
+    # Liquidity vacuum
+    df_new["LiquidityVacuum"] = (
+        df_new["Range15"] /
+        (df_new.groupby("Stock")["Volume"]
+         .rolling(20).mean()
+         .reset_index(level=0,drop=True) + 1e-6)
+    )
+    
+    # Volatility regime
+    df_new["VolatilityRegime"] = (
+        df_new["Volatility15"] /
+        (df_new["Volatility60"] + 1e-6)
+    )
+    
+    # Orderflow imbalance
+    df_new["BuyPressure"] = (
+        (df_new["Close"] - df_new["Low"]) /
+        (df_new["High"] - df_new["Low"] + 1e-6)
+    )
+    
+    df_new["SellPressure"] = (
+        (df_new["High"] - df_new["Close"]) /
+        (df_new["High"] - df_new["Low"] + 1e-6)
+    )
+    
+    df_new["OrderflowImbalance"] = (
+        df_new["BuyPressure"] - df_new["SellPressure"]
+    )
+    
+    # Volume spike
+    df_new["VolumeSpike"] = (
+        df_new["Volume"] /
+        df_new.groupby("Stock")["Volume"]
+        .rolling(15).mean()
+        .reset_index(level=0,drop=True)
+    )
+    
+    df_new["VolumeShock"] = (
+        df_new["Volume"] /
+        (df_new.groupby("Stock")["Volume"]
+         .rolling(30).mean()
+         .reset_index(level=0,drop=True) + 1e-6)
+    )
+    
+    # VWAP
+    df_new["VWAP"] = (
+        (df_new["Close"] * df_new["Volume"])
+        .groupby(df_new["Stock"])
+        .cumsum()
+        /
+        df_new["Volume"]
+        .groupby(df_new["Stock"])
+        .cumsum()
+    )
+    
+    df_new["VWAPDeviation"] = (
+        (df_new["Close"] - df_new["VWAP"]) /
+        df_new["VWAP"]
+    )
+    
+    df_new["VWAPMomentum"] = (
+        df_new["VWAPDeviation"] -
+        df_new.groupby("Stock")["VWAPDeviation"].shift(3)
+    )
+    
+    # Acceleration
+    df_new["Acceleration"] = (
+        df_new.groupby("Stock")["Close"].pct_change(5) -
+        df_new.groupby("Stock")["Close"].pct_change(15)
+    )
+    
+    # Relative volume
+    df_new["RelVolume"] = (
+        df_new["Volume"] /
+        df_new.groupby("Stock")["Volume"]
+        .rolling(50).mean()
+        .reset_index(level=0,drop=True)
+    )
+    
+    # Time feature
+    df_new["Hour"] = df_new["Datetime"].dt.hour
+    df_new["Minute"] = df_new["Datetime"].dt.minute
+    
+    df_new["TimeBlock"] = df_new["Hour"] * 60 + df_new["Minute"]
+    
+    # Market breadth proxy
+    df_new["UpStock"] = (df_new["Return"] > 0).astype(int)
+    
+    df_new["MarketBreadth"] = (
+        df_new.groupby("Datetime")["UpStock"]
+        .transform("mean")
+    )
+    
+    df_new["MarketBreadthPressure"] = (
+        df_new.groupby("Datetime")["Close"]
+        .transform(lambda x: (x.pct_change() > 0).mean())
+    )
+    
+    # Lag momentum
+    df_new["LagMomentum"] = (
+        df_new.groupby("Stock")["Close"]
+        .pct_change(3)
+        .shift(2)
+    )
+    
+    # Relative rank
+    df_new["RelativeRank"] = (
+        df_new.groupby("Datetime")["Close"]
+        .pct_change(15)
+        .rank(pct=True)
+    )
+    
+    # ======================================================
+    # CLEANUP
+    # ======================================================
+    
+    df_new = df_new.replace([np.inf,-np.inf],np.nan).fillna(0)
     print("LIVE FEATURES:")
     print(df_new.columns.tolist())
     # Ensure model features exist
@@ -363,6 +537,31 @@ if new_frames:
     table_columns = pd.read_sql("SELECT * FROM events LIMIT 1", engine).columns
 
     df_new = df_new.loc[:, df_new.columns.intersection(table_columns)]
+
+    # ================= KEEP ONLY NEW ROWS =================
+
+    latest_db = pd.read_sql(
+    """
+    SELECT "Stock","Datetime"
+    FROM events
+    WHERE "Datetime" > NOW() - INTERVAL '1 day'
+    """,
+    engine
+    )
+    
+    if not latest_db.empty:
+    
+        df_new = df_new.merge(
+            latest_db,
+            on=["Stock","Datetime"],
+            how="left",
+            indicator=True
+        )
+    
+        df_new = df_new[df_new["_merge"]=="left_only"]
+    
+        df_new = df_new.drop(columns="_merge")
+    
 
     # ================= BOOLEAN FIX =================
 
