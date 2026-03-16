@@ -261,7 +261,7 @@ for stock, scrip in stocks.items():
         if last_time is None:
             start_date = "2026-03-10"
         else:
-            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M")
+            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d")
         
         print(stock, "fetching from", start_date)
 
