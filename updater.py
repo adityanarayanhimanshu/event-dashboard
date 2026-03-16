@@ -382,7 +382,9 @@ if new_frames:
     df_new = df_new.reset_index(drop=True)
     
     # ====================== SAVE TO DATABASE ======================
-    
+    table_columns = pd.read_sql("SELECT * FROM events LIMIT 1", engine).columns
+    df_new = df_new[[c for c in df_new.columns if c in table_columns]]
+
     df_new.to_sql(
         "events",
         engine,
