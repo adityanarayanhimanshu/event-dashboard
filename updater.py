@@ -248,8 +248,7 @@ new_frames = []
 # ====================== FETCH DATA ======================
 for stock, scrip in stocks.items():
 
-    try:
-        file = f"{DATA_PATH}/{stock}.parquet" 
+    try: 
         last_time = pd.read_sql(
             'SELECT MAX("Datetime") FROM events WHERE "Stock" = %s',
             engine,
@@ -260,7 +259,7 @@ for stock, scrip in stocks.items():
             start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
         else:
             start_date = last_time.strftime("%Y-%m-%d")
-
+        print(stock, "fetching from", start_date)
         data = client.historical_data(
             Exch="N",
             ExchangeSegment="C",
@@ -296,17 +295,20 @@ for stock, scrip in stocks.items():
 
         print(stock, "rows received:", len(df))
         
-
+        # Ensure stock column
         df["Stock"] = stock
+        
+        # Ensure datetime
         df["Datetime"] = pd.to_datetime(df["Datetime"])
 
         if last_time is not None:
             df = df[df["Datetime"] > last_time]
-            
-        new_frames.append(df)
+        if df.empty:
+            print(stock, "no new candles")
+            continue
 
-        df.to_parquet(file,index=False)
-        print(stock,"saved")
+        print(stock, "new rows:", len(df))    
+        new_frames.append(df)
 
     except Exception as e:
         print("Error:",stock,e)
