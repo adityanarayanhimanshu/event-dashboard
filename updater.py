@@ -253,7 +253,7 @@ for stock, scrip in stocks.items():
     try:
 
         file = f"{DATA_PATH}/{stock}.parquet"
-        start_date = "2025-01-01"
+        start_date = "2026-03-10"
         
         if os.path.exists(file):
             old = pd.read_parquet(file)
