@@ -49,7 +49,7 @@ if response is None:
 
 print("5Paisa login successful")
 
-engine = create_engine(CONNECTION_STRING)
+engine = create_engine(CONNECTION_STRING,pool_pre_ping=True)
 print("Connected to Neon DB")
 ########################################################
 model = joblib.load("intraday_quant_model.pkl")
@@ -143,8 +143,6 @@ print("Market open or FORCE_RUN enabled — proceeding...")
 # market hours 9:15–15:30
 
 # ====================== DATA PATH ======================
-DATA_PATH = "data/stocks"
-os.makedirs(DATA_PATH, exist_ok=True)
 
 # ====================== STOCK LIST ======================
 stocks = {
@@ -252,13 +250,16 @@ for stock, scrip in stocks.items():
 
     try:
         file = f"{DATA_PATH}/{stock}.parquet" 
-        last_time = pd.read_sql(f"""
-        SELECT MAX("Datetime")
-        FROM events
-        WHERE "Stock" = '{stock}'
-        """, engine).iloc[0,0]
+        last_time = pd.read_sql(
+            'SELECT MAX("Datetime") FROM events WHERE "Stock" = %s',
+            engine,
+            params=[stock]
+        ).iloc[0,0]
         
-        start_date = (last_time - timedelta(days=1)).strftime("%Y-%m-%d")
+        if last_time is None:
+            start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+        else:
+            start_date = last_time.strftime("%Y-%m-%d")
 
         data = client.historical_data(
             Exch="N",
@@ -299,20 +300,12 @@ for stock, scrip in stocks.items():
         df["Stock"] = stock
         df["Datetime"] = pd.to_datetime(df["Datetime"])
 
-        if os.path.exists(file):
-            old = pd.read_parquet(file)
-            df = pd.concat([old, df]).drop_duplicates(subset=["Stock","Datetime"])
+        if last_time is not None:
+            df = df[df["Datetime"] > last_time]
+            
+        new_frames.append(df)
 
         df.to_parquet(file,index=False)
-
-        df.to_sql(
-            "stock_data",
-            engine,
-            if_exists="append",
-            index=False,
-            method="multi"
-        )
-
         print(stock,"saved")
 
     except Exception as e:
@@ -322,7 +315,11 @@ for stock, scrip in stocks.items():
 if new_frames:
 
     df_new = pd.concat(new_frames, ignore_index=True)
-
+    for f in features:
+        if f not in df_new.columns:
+            df_new[f] = 0
+    
+    df_new[features] = df_new[features].fillna(0)
     # Run predictions
     
         # ====================== MODEL PREDICTIONS ======================
@@ -330,7 +327,7 @@ if new_frames:
     try:
     
         df_new = df_new.sort_values(["Stock", "Datetime"])
-    
+
         preds = []
     
         # Sequential prediction to avoid look-ahead bias
@@ -344,7 +341,7 @@ if new_frames:
     
                 g_slice = g.iloc[: i + 1]
     
-                X_slice = g_slice[feature_cols]
+                X_slice = g_slice[features]
     
                 pred = model.predict_proba(X_slice.tail(1))[:,1][0]
     
@@ -378,26 +375,26 @@ if new_frames:
         
         
         # ====================== DUPLICATE PROTECTION ======================
-        if not df_new.empty:
-            df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
-        
-        
-        # ====================== SAVE TO DATABASE ======================
-        
-        df_new.to_sql(
-            "events",
-            engine,
-            if_exists="append",
-            index=False,
-            method="multi",
-            chunksize=5000
-        )
-        
-        print("Added rows:", len(df_new))
-        
-    else:
+    df_new = df_new[df_new["Datetime"].notna()]
+    df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
     
-        print("No new data")
+    
+    # ====================== SAVE TO DATABASE ======================
+    
+    df_new.to_sql(
+        "events",
+        engine,
+        if_exists="append",
+        index=False,
+        method="multi",
+        chunksize=5000
+    )
+    
+    print("Added rows:", len(df_new))
+    
+else:
+
+    print("No new data")
 
     
 # ====================== STRATEGY CALCULATION ======================
