@@ -291,20 +291,14 @@ for stock, scrip in stocks.items():
             if "data" not in data:
                 print(stock, "API response missing 'data' key:", data)
                 continue
-            
+        df = pd.DataFrame(data)   
         
         if df.empty:
             print(stock, "API returned empty response")
             continue
 
-        
-        df = pd.DataFrame(data)
-
         print(stock, "rows received:", len(df))
         
-        if df.empty:
-            print("No new data:", stock)
-            continue
 
         df["Stock"] = stock
         df["Datetime"] = pd.to_datetime(df["Datetime"])
