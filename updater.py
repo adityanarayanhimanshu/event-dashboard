@@ -251,16 +251,17 @@ new_frames = []
 for stock, scrip in stocks.items():
 
     try:
-
-        file = f"{DATA_PATH}/{stock}.parquet"
-        start_date = "2026-03-10"
         
-        if os.path.exists(file):
-            old = pd.read_parquet(file)
-            last_time = pd.to_datetime(old["Datetime"]).max()
+        last_time = pd.read_sql(f"""
+        SELECT MAX("Datetime")
+        FROM events
+        WHERE "Stock" = '{stock}'
+        """, engine).iloc[0,0]
         
-            # fetch slightly earlier to avoid missing candles
-            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d")
+        if last_time is None:
+            start_date = "2026-03-10"
+        else:
+            start_date = (last_time - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M")
         
         print(stock, "fetching from", start_date)
 
