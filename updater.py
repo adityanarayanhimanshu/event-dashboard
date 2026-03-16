@@ -339,157 +339,159 @@ if new_frames:
     if not history.empty:
         history["Datetime"] = pd.to_datetime(history["Datetime"])
     
-        df_new = pd.concat([history, df_new])
+        df_all = pd.concat([history, df_new], ignore_index=True)
     else:
-        df_new = df_new.sort_values(["Stock","Datetime"])
+        df_all = df_new.copy()
+        
+    df_all = df_all.sort_values(["Stock","Datetime"]).reset_index(drop=True)
     # ================= FEATURE ENGINEERING =================
 
-    df_new = df_new.sort_values(["Stock","Datetime"])
+    #df_new = df_new.sort_values(["Stock","Datetime"])
     
     # Basic returns
-    df_new["Return"] = df_new.groupby("Stock")["Close"].pct_change()
+    df_all["Return"] = df_all.groupby("Stock")["Close"].pct_change()
     
     # Momentum
-    df_new["Momentum5"] = df_new.groupby("Stock")["Close"].pct_change(5)
-    df_new["Momentum15"] = df_new.groupby("Stock")["Close"].pct_change(15)
-    df_new["Momentum30"] = df_new.groupby("Stock")["Close"].pct_change(30)
-    df_new["Momentum60"] = df_new.groupby("Stock")["Close"].pct_change(60)
+    df_all["Momentum5"] = df_all.groupby("Stock")["Close"].pct_change(5)
+    df_all["Momentum15"] = df_all.groupby("Stock")["Close"].pct_change(15)
+    df_all["Momentum30"] = df_all.groupby("Stock")["Close"].pct_change(30)
+    df_all["Momentum60"] = df_all.groupby("Stock")["Close"].pct_change(60)
     
     # Trend
-    df_new["Trend3"] = df_new.groupby("Stock")["Close"].pct_change(3)
+    df_all["Trend3"] = df_all.groupby("Stock")["Close"].pct_change(3)
     
     # Volatility
-    df_new["Volatility15"] = (
-        df_new.groupby("Stock")["Close"]
+    df_all["Volatility15"] = (
+        df_all.groupby("Stock")["Close"]
         .pct_change()
         .rolling(15)
         .std()
     )
     
-    df_new["Volatility60"] = (
-        df_new.groupby("Stock")["Close"]
+    df_all["Volatility60"] = (
+        df_all.groupby("Stock")["Close"]
         .pct_change()
         .rolling(60)
         .std()
     )
     
     # Range
-    df_new["Range15"] = (
-        df_new.groupby("Stock")["High"]
+    df_all["Range15"] = (
+        df_all.groupby("Stock")["High"]
         .rolling(15).max().reset_index(level=0,drop=True)
         -
-        df_new.groupby("Stock")["Low"]
+        df_all.groupby("Stock")["Low"]
         .rolling(15).min().reset_index(level=0,drop=True)
-    ) / df_new["Close"]
+    ) / df_all["Close"]
     
     # Liquidity vacuum
-    df_new["LiquidityVacuum"] = (
-        df_new["Range15"] /
-        (df_new.groupby("Stock")["Volume"]
+    df_all["LiquidityVacuum"] = (
+        df_all["Range15"] /
+        (df_all.groupby("Stock")["Volume"]
          .rolling(20).mean()
          .reset_index(level=0,drop=True) + 1e-6)
     )
     
     # Volatility regime
-    df_new["VolatilityRegime"] = (
-        df_new["Volatility15"] /
-        (df_new["Volatility60"] + 1e-6)
+    df_all["VolatilityRegime"] = (
+        df_all["Volatility15"] /
+        (df_all["Volatility60"] + 1e-6)
     )
     
     # Orderflow imbalance
-    df_new["BuyPressure"] = (
-        (df_new["Close"] - df_new["Low"]) /
-        (df_new["High"] - df_new["Low"] + 1e-6)
+    df_all["BuyPressure"] = (
+        (df_all["Close"] - df_all["Low"]) /
+        (df_all["High"] - df_all["Low"] + 1e-6)
     )
     
-    df_new["SellPressure"] = (
-        (df_new["High"] - df_new["Close"]) /
-        (df_new["High"] - df_new["Low"] + 1e-6)
+    df_all["SellPressure"] = (
+        (df_all["High"] - df_all["Close"]) /
+        (df_all["High"] - df_all["Low"] + 1e-6)
     )
     
-    df_new["OrderflowImbalance"] = (
-        df_new["BuyPressure"] - df_new["SellPressure"]
+    df_all["OrderflowImbalance"] = (
+        df_all["BuyPressure"] - df_all["SellPressure"]
     )
     
     # Volume spike
-    df_new["VolumeSpike"] = (
-        df_new["Volume"] /
-        df_new.groupby("Stock")["Volume"]
+    df_all["VolumeSpike"] = (
+        df_all["Volume"] /
+        df_all.groupby("Stock")["Volume"]
         .rolling(15).mean()
         .reset_index(level=0,drop=True)
     )
     
-    df_new["VolumeShock"] = (
-        df_new["Volume"] /
-        (df_new.groupby("Stock")["Volume"]
+    df_all["VolumeShock"] = (
+        df_all["Volume"] /
+        (df_all.groupby("Stock")["Volume"]
          .rolling(30).mean()
          .reset_index(level=0,drop=True) + 1e-6)
     )
     
     # VWAP
-    df_new["VWAP"] = (
-        (df_new["Close"] * df_new["Volume"])
-        .groupby(df_new["Stock"])
+    df_all["VWAP"] = (
+        (df_all["Close"] * df_all["Volume"])
+        .groupby(df_all["Stock"])
         .cumsum()
         /
-        df_new["Volume"]
-        .groupby(df_new["Stock"])
+        df_all["Volume"]
+        .groupby(df_all["Stock"])
         .cumsum()
     )
     
-    df_new["VWAPDeviation"] = (
-        (df_new["Close"] - df_new["VWAP"]) /
-        df_new["VWAP"]
+    df_all["VWAPDeviation"] = (
+        (df_all["Close"] - df_all["VWAP"]) /
+        df_all["VWAP"]
     )
     
-    df_new["VWAPMomentum"] = (
-        df_new["VWAPDeviation"] -
-        df_new.groupby("Stock")["VWAPDeviation"].shift(3)
+    df_all["VWAPMomentum"] = (
+        df_all["VWAPDeviation"] -
+        df_all.groupby("Stock")["VWAPDeviation"].shift(3)
     )
     
     # Acceleration
-    df_new["Acceleration"] = (
-        df_new.groupby("Stock")["Close"].pct_change(5) -
-        df_new.groupby("Stock")["Close"].pct_change(15)
+    df_all["Acceleration"] = (
+        df_all.groupby("Stock")["Close"].pct_change(5) -
+        df_all.groupby("Stock")["Close"].pct_change(15)
     )
     
     # Relative volume
-    df_new["RelVolume"] = (
-        df_new["Volume"] /
-        df_new.groupby("Stock")["Volume"]
+    df_all["RelVolume"] = (
+        df_all["Volume"] /
+        df_all.groupby("Stock")["Volume"]
         .rolling(50).mean()
         .reset_index(level=0,drop=True)
     )
     
     # Time feature
-    df_new["Hour"] = df_new["Datetime"].dt.hour
-    df_new["Minute"] = df_new["Datetime"].dt.minute
+    df_all["Hour"] = df_all["Datetime"].dt.hour
+    df_all["Minute"] = df_all["Datetime"].dt.minute
     
-    df_new["TimeBlock"] = df_new["Hour"] * 60 + df_new["Minute"]
+    df_all["TimeBlock"] = df_all["Hour"] * 60 + df_all["Minute"]
     
     # Market breadth proxy
-    df_new["UpStock"] = (df_new["Return"] > 0).astype(int)
+    df_all["UpStock"] = (df_all["Return"] > 0).astype(int)
     
-    df_new["MarketBreadth"] = (
-        df_new.groupby("Datetime")["UpStock"]
+    df_all["MarketBreadth"] = (
+        df_all.groupby("Datetime")["UpStock"]
         .transform("mean")
     )
     
-    df_new["MarketBreadthPressure"] = (
-        df_new.groupby("Datetime")["Close"]
+    df_all["MarketBreadthPressure"] = (
+        df_all.groupby("Datetime")["Close"]
         .transform(lambda x: (x.pct_change() > 0).mean())
     )
     
     # Lag momentum
-    df_new["LagMomentum"] = (
-        df_new.groupby("Stock")["Close"]
+    df_all["LagMomentum"] = (
+        df_all.groupby("Stock")["Close"]
         .pct_change(3)
         .shift(2)
     )
     
     # Relative rank
-    df_new["RelativeRank"] = (
-        df_new.groupby("Datetime")["Close"]
+    df_all["RelativeRank"] = (
+        df_all.groupby("Datetime")["Close"]
         .pct_change(15)
         .rank(pct=True)
     )
@@ -499,38 +501,38 @@ if new_frames:
 
     lookback = 20
     
-    df_new["RecentHigh"] = (
-        df_new.groupby("Stock")["High"]
+    df_all["RecentHigh"] = (
+        df_all.groupby("Stock")["High"]
         .transform(lambda x: x.rolling(lookback).max())
     )
     
-    df_new["RecentLow"] = (
-        df_new.groupby("Stock")["Low"]
+    df_all["RecentLow"] = (
+        df_all.groupby("Stock")["Low"]
         .transform(lambda x: x.rolling(lookback).min())
     )
     
-    df_new["HighSweep"] = (
-        (df_new["High"] > df_new["RecentHigh"].shift(1)) &
-        (df_new["Close"] < df_new["RecentHigh"].shift(1))
+    df_all["HighSweep"] = (
+        (df_all["High"] > df_all["RecentHigh"].shift(1)) &
+        (df_all["Close"] < df_all["RecentHigh"].shift(1))
     ).astype(int)
     
-    df_new["LowSweep"] = (
-        (df_new["Low"] < df_new["RecentLow"].shift(1)) &
-        (df_new["Close"] > df_new["RecentLow"].shift(1))
+    df_all["LowSweep"] = (
+        (df_all["Low"] < df_all["RecentLow"].shift(1)) &
+        (df_all["Close"] > df_all["RecentLow"].shift(1))
     ).astype(int)
     
-    df_new["SweepStrength"] = (
-        (df_new["High"] - df_new["Low"]) /
-        df_new["Close"]
+    df_all["SweepStrength"] = (
+        (df_all["High"] - df_all["Low"]) /
+        df_all["Close"]
     )
     
-    df_new["RecentHighSweeps"] = (
-        df_new.groupby("Stock")["HighSweep"]
+    df_all["RecentHighSweeps"] = (
+        df_all.groupby("Stock")["HighSweep"]
         .transform(lambda x: x.rolling(10).sum())
     )
     
-    df_new["RecentLowSweeps"] = (
-        df_new.groupby("Stock")["LowSweep"]
+    df_all["RecentLowSweeps"] = (
+        df_all.groupby("Stock")["LowSweep"]
         .transform(lambda x: x.rolling(10).sum())
     )
     # ================= SECTOR FEATURES =================
@@ -557,36 +559,36 @@ if new_frames:
     
     }
     
-    df_new["Sector"] = df_new["Stock"].map(sector_map)
+    df_all["Sector"] = df_all["Stock"].map(sector_map)
     
-    df_new["SectorMomentum"] = (
-        df_new.groupby(["Sector","Datetime"])["Return"]
+    df_all["SectorMomentum"] = (
+        df_all.groupby(["Sector","Datetime"])["Return"]
         .transform("mean")
     )
     
-    df_new["RelativeStrengthSector"] = (
-        df_new["Return"] - df_new["SectorMomentum"]
+    df_all["RelativeStrengthSector"] = (
+        df_all["Return"] - df_all["SectorMomentum"]
     )
     # ================= CROSS SECTIONAL FEATURES =================
 
-    returns10 = df_new.groupby("Stock")["Close"].pct_change(10)
+    returns10 = df_all.groupby("Stock")["Close"].pct_change(10)
     
-    df_new["PeerMomentum"] = (
-        returns10.groupby(df_new["Datetime"]).transform("mean")
+    df_all["PeerMomentum"] = (
+        returns10.groupby(df_all["Datetime"]).transform("mean")
     )
     
-    df_new["RelativeRank"] = (
-        df_new.groupby("Datetime")["Close"]
+    df_all["RelativeRank"] = (
+        df_all.groupby("Datetime")["Close"]
         .pct_change(15)
         .rank(pct=True)
     )
     
-    df_new["RelativeStrengthMarketIndia"] = (
-        df_new["Return"] - df_new["NiftyMomentum"]
+    df_all["RelativeStrengthMarketIndia"] = (
+        df_all["Return"] - df_all["NiftyMomentum"]
     )
     
-    df_new["RelativeStrengthMarketUS"] = (
-        df_new["Return"] - df_new["SP500_return"]
+    df_all["RelativeStrengthMarketUS"] = (
+        df_all["Return"] - df_all["SP500_return"]
     )
     # ================= MACRO FEATURES =================
 
@@ -599,7 +601,7 @@ if new_frames:
     
     for col in macro_cols:
         if col not in df_new.columns:
-            df_new[col] = 0
+            df_all[col] = 0
 
 
     # ================= INDEX FEATURES =================
@@ -610,31 +612,32 @@ if new_frames:
     ]
     
     for col in index_cols:
-        if col not in df_new.columns:
-            df_new[col] = 0
+        if col not in df_all.columns:
+            df_all[col] = 0
     
     # CLEANUP
     # ======================================================
     
-    df_new = df_new.replace([np.inf,-np.inf],np.nan).fillna(0)
+    df_all = df_all.replace([np.inf,-np.inf],np.nan).fillna(0)
     print("LIVE FEATURES:")
-    print(df_new.columns.tolist())
+    print(df_all.columns.tolist())
     # Ensure model features exist
     for f in model.feature_names_in_:
-        if f not in df_new.columns:
-            df_new[f] = 0
+        if f not in df_all.columns:
+            df_all[f] = 0
 
-    df_new[model.feature_names_in_] = df_new[model.feature_names_in_].fillna(0)
+    df_all[model.feature_names_in_] = df_all[model.feature_names_in_].fillna(0)
 
     # ================= MODEL PREDICTIONS =================
 
     try:
 
-        df_new = df_new.sort_values(["Stock", "Datetime"])
+        #df_new = df_new.sort_values(["Stock", "Datetime"])
 
-        X = df_new[model.feature_names_in_]
+        X = df_all[model.feature_names_in_]
 
-        df_new["Pred"] = model.predict_proba(X)[:,1]
+        df_all["Pred"] = model.predict_proba(X)[:,1]
+        df_new = df_all[df_all["Datetime"].isin(df_new["Datetime"])]
 
     except Exception as e:
 
