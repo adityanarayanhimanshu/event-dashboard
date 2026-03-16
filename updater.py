@@ -569,10 +569,13 @@ if new_frames:
         how="left"
     )
     
+    df_all[["ORBHigh","ORBLow"]] = df_all[["ORBHigh","ORBLow"]].fillna(method="ffill")
+
+    df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
+    df_all["ORBLow"] = df_all.groupby(["Stock","Date"])["ORBLow"].ffill()
+    
     df_all["ORBStrength"] = (df_all["Close"] - df_all["ORBHigh"]) / df_all["ORBHigh"]
     df_all["ORBWeakness"] = (df_all["ORBLow"] - df_all["Close"]) / df_all["ORBLow"]
-
-    df_all[["ORBHigh","ORBLow"]] = df_all[["ORBHigh","ORBLow"]].fillna(method="ffill")
     # Market breadth proxy
     df_all["UpStock"] = (df_all["Return"] > 0).astype(int)
     
