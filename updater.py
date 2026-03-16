@@ -385,6 +385,12 @@ if new_frames:
     # ===================== MATCH DATABASE SCHEMA =====================
     table_columns = pd.read_sql("SELECT * FROM events LIMIT 1", engine).columns
     df_new = df_new.loc[:, df_new.columns.intersection(table_columns)]
+
+    bool_cols = ["ORBWeakness"]
+
+    for c in bool_cols:
+        if c in df_new.columns:
+            df_new[c] = df_new[c].astype(bool)
     
     # ===================== SAVE TO DATABASE =====================
     df_new.to_sql(
