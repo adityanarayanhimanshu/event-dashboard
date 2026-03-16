@@ -252,7 +252,7 @@ for stock, scrip in stocks.items():
         last_time = pd.read_sql(
             'SELECT MAX("Datetime") FROM events WHERE "Stock" = %s',
             engine,
-            params=[stock]
+            params=(stock,)
         ).iloc[0,0]
         
         if last_time is None:
