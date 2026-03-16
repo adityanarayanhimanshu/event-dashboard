@@ -258,7 +258,7 @@ for stock, scrip in stocks.items():
         WHERE "Stock" = '{stock}'
         """, engine).iloc[0,0]
         
-        start_date = (datetime.now() - timedelta(days=3)).strftime("%Y-%m-%d")
+        start_date = (last_time - timedelta(days=1)).strftime("%Y-%m-%d")
 
         data = client.historical_data(
             Exch="N",
