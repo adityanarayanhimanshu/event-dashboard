@@ -389,7 +389,7 @@ if new_frames:
         
         # ====================== DUPLICATE PROTECTION ======================
         if not df_new.empty:
-        df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
+            df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
         
         
         # ====================== SAVE TO DATABASE ======================
