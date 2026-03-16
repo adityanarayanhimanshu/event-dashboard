@@ -345,21 +345,7 @@ if new_frames:
 
     df_new[model.feature_names_in_] = df_new[model.feature_names_in_].fillna(0)
 
-    # ==================== DEBUG ====================
-    print("MODEL FEATURES:")
-    print(model.feature_names_in_)
-
-    print("LIVE FEATURES:")
-    print(df_new.columns.tolist())
-
-    print("DATA SAMPLE:")
-    print(df_new.head())
-
-    print("DATA STATS:")
-    print(df_new[model.feature_names_in_].describe())
-    # ===============================================
-
-    # ==================== MODEL PREDICTIONS ====================
+    # ================= MODEL PREDICTIONS =================
 
     try:
 
@@ -367,24 +353,29 @@ if new_frames:
 
         X = df_new[model.feature_names_in_]
 
-        df_new["Pred"] = model.predict_proba(X)[:, 1]
+        df_new["Pred"] = model.predict_proba(X)[:,1]
 
     except Exception as e:
+
         print("Prediction error:", e)
+
         df_new["Pred"] = 0
 
-    # ==================== DUPLICATE PROTECTION ====================
+    # ================= DUPLICATE PROTECTION =================
 
     df_new = df_new[df_new["Datetime"].notna()]
-    df_new = df_new.drop_duplicates(subset=["Stock", "Datetime"])
+
+    df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
+
     df_new = df_new.reset_index(drop=True)
 
-    # ==================== MATCH DATABASE SCHEMA ====================
+    # ================= MATCH DATABASE SCHEMA =================
 
     table_columns = pd.read_sql("SELECT * FROM events LIMIT 1", engine).columns
+
     df_new = df_new.loc[:, df_new.columns.intersection(table_columns)]
 
-    # ==================== BOOLEAN FIX ====================
+    # ================= BOOLEAN FIX =================
 
     bool_cols = ["ORBWeakness"]
 
@@ -392,7 +383,7 @@ if new_frames:
         if c in df_new.columns:
             df_new[c] = df_new[c].astype(bool)
 
-    # ==================== SAVE ====================
+    # ================= SAVE =================
 
     df_new.to_sql(
         "events",
