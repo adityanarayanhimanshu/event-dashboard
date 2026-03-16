@@ -251,7 +251,7 @@ new_frames = []
 for stock, scrip in stocks.items():
 
     try:
-        
+        file = f"{DATA_PATH}/{stock}.parquet" 
         last_time = pd.read_sql(f"""
         SELECT MAX("Datetime")
         FROM events
