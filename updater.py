@@ -344,13 +344,83 @@ if new_frames:
         df_all = df_new.copy()
         
     df_all = df_all.sort_values(["Stock","Datetime"]).reset_index(drop=True)
+
+
+    import yfinance as yf
+
+    macro_tickers = {
+        "SP500_return": "^GSPC",
+        "NASDAQ_return": "^IXIC",
+        "CRUDE_return": "CL=F",
+        "USDINR_return": "INR=X"
+    }
+    
+    macro_data = {}
+    
+    for name, ticker in macro_tickers.items():
+        
+        data = yf.download(
+            ticker,
+            period="5d",
+            interval="5m",
+            progress=False
+        )
+    
+        if not data.empty:
+    
+            data["Return"] = data["Close"].pct_change()
+    
+            data = data.reset_index()
+    
+            macro_data[name] = data[["Datetime","Return"]].rename(
+                columns={"Return":name}
+            )
+    
+    for name, data in macro_data.items():
+    
+        df_all = df_all.merge(
+            data,
+            on="Datetime",
+            how="left"
+        )
+    df_all = df_all.fillna(method="ffill")
+    index_tickers = {
+        "NiftyMomentum": "^NSEI",
+        "BankNiftyMomentum": "^NSEBANK"
+    }
+    
+    for name, ticker in index_tickers.items():
+    
+        data = yf.download(
+            ticker,
+            period="5d",
+            interval="5m",
+            progress=False
+        )
+    
+        if not data.empty:
+    
+            data = data.reset_index()
+    
+            data[name] = data["Close"].pct_change(5)
+    
+            df_all = df_all.merge(
+                data[["Datetime",name]],
+                on="Datetime",
+                how="left"
+            )
     # ================= FEATURE ENGINEERING =================
 
     #df_new = df_new.sort_values(["Stock","Datetime"])
     
     # Basic returns
     df_all["Return"] = df_all.groupby("Stock")["Close"].pct_change()
-    
+    from transformers import pipeline
+
+    sentiment_analyzer = pipeline(
+        "sentiment-analysis",
+        model="ProsusAI/finbert"
+    )
     # Momentum
     df_all["Momentum5"] = df_all.groupby("Stock")["Close"].pct_change(5)
     df_all["Momentum15"] = df_all.groupby("Stock")["Close"].pct_change(15)
@@ -469,6 +539,40 @@ if new_frames:
     
     df_all["TimeBlock"] = df_all["Hour"] * 60 + df_all["Minute"]
     
+    orb_window_minutes = 15
+
+    df_all["Date"] = df_all["Datetime"].dt.date
+
+    mask = df_all["TimeBlock"] <= (9*60 + 30)
+    
+    orb_high = (
+        df_all[mask]
+        .groupby(["Stock","Date"])["High"]
+        .max()
+    )
+    
+    orb_low = (
+        df_all[mask]
+        .groupby(["Stock","Date"])["Low"]
+        .min()
+    )
+    
+    df_all = df_all.merge(
+        orb_high.rename("ORBHigh"),
+        on=["Stock","Date"],
+        how="left"
+    )
+    
+    df_all = df_all.merge(
+        orb_low.rename("ORBLow"),
+        on=["Stock","Date"],
+        how="left"
+    )
+    
+    df_all["ORBStrength"] = (df_all["Close"] - df_all["ORBHigh"]) / df_all["ORBHigh"]
+    df_all["ORBWeakness"] = (df_all["ORBLow"] - df_all["Close"]) / df_all["ORBLow"]
+
+    df_all[["ORBHigh","ORBLow"]] = df_all[["ORBHigh","ORBLow"]].fillna(method="ffill")
     # Market breadth proxy
     df_all["UpStock"] = (df_all["Return"] > 0).astype(int)
     
@@ -600,7 +704,7 @@ if new_frames:
     ]
     
     for col in macro_cols:
-        if col not in df_new.columns:
+        if col not in df_all.columns:
             df_all[col] = 0
 
 
