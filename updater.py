@@ -340,7 +340,7 @@ if new_frames:
         history["Datetime"] = pd.to_datetime(history["Datetime"])
     
         df_new = pd.concat([history, df_new])
-    
+    else:
         df_new = df_new.sort_values(["Stock","Datetime"])
     # ================= FEATURE ENGINEERING =================
 
