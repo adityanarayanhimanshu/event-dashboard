@@ -376,21 +376,23 @@ if new_frames:
         df_new["Pred"] = None
         
         
-        # ====================== DUPLICATE PROTECTION ======================
+    # ====================== DUPLICATE PROTECTION ======================
+    
     df_new = df_new[df_new["Datetime"].notna()]
     df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
     df_new = df_new.reset_index(drop=True)
     
-    # ====================== SAVE TO DATABASE ======================
+    # ===================== MATCH DATABASE SCHEMA =====================
     table_columns = pd.read_sql("SELECT * FROM events LIMIT 1", engine).columns
-    df_new = df_new[[c for c in df_new.columns if c in table_columns]]
-
+    df_new = df_new.loc[:, df_new.columns.intersection(table_columns)]
+    
+    # ===================== SAVE TO DATABASE =====================
     df_new.to_sql(
         "events",
         engine,
         if_exists="append",
         index=False,
-        chunksize=1000
+        chunksize=500
     )
     
     print("Added rows:", len(df_new))
