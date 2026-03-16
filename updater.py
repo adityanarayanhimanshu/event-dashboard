@@ -60,12 +60,6 @@ print(model.feature_names_in_)
 
 print("LIVE FEATURES:")
 
-# ===== DEBUG END =====
-
-X = df_new.reindex(columns=model.feature_names_in_, fill_value=0)
-
-df_new["Pred"] = model.predict_proba(X)[:,1]
-print("Model loaded")
 features = [
 
 "Sentiment",
