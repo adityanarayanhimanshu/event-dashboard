@@ -331,7 +331,7 @@ if new_frames:
     """
     SELECT *
     FROM events
-    WHERE "Datetime" > NOW() - INTERVAL '3 days'
+    WHERE "Datetime" > NOW() - INTERVAL '5 days'
     """,
     engine
     )
@@ -495,6 +495,124 @@ if new_frames:
     )
     
     # ======================================================
+    # ================= LIQUIDITY SWEEP FEATURES =================
+
+    lookback = 20
+    
+    df_new["RecentHigh"] = (
+        df_new.groupby("Stock")["High"]
+        .transform(lambda x: x.rolling(lookback).max())
+    )
+    
+    df_new["RecentLow"] = (
+        df_new.groupby("Stock")["Low"]
+        .transform(lambda x: x.rolling(lookback).min())
+    )
+    
+    df_new["HighSweep"] = (
+        (df_new["High"] > df_new["RecentHigh"].shift(1)) &
+        (df_new["Close"] < df_new["RecentHigh"].shift(1))
+    ).astype(int)
+    
+    df_new["LowSweep"] = (
+        (df_new["Low"] < df_new["RecentLow"].shift(1)) &
+        (df_new["Close"] > df_new["RecentLow"].shift(1))
+    ).astype(int)
+    
+    df_new["SweepStrength"] = (
+        (df_new["High"] - df_new["Low"]) /
+        df_new["Close"]
+    )
+    
+    df_new["RecentHighSweeps"] = (
+        df_new.groupby("Stock")["HighSweep"]
+        .transform(lambda x: x.rolling(10).sum())
+    )
+    
+    df_new["RecentLowSweeps"] = (
+        df_new.groupby("Stock")["LowSweep"]
+        .transform(lambda x: x.rolling(10).sum())
+    )
+    # ================= SECTOR FEATURES =================
+
+    sector_map = {
+    
+    "TCS":"IT","INFY":"IT","HCLTECH":"IT","WIPRO":"IT","TECHM":"IT",
+    
+    "HDFCBANK":"BANK","ICICIBANK":"BANK","SBIN":"BANK","AXISBANK":"BANK","KOTAKBANK":"BANK",
+    
+    "BAJFINANCE":"FINANCE","BAJAJFINSV":"FINANCE",
+    
+    "RELIANCE":"ENERGY","ONGC":"ENERGY","GAIL":"ENERGY",
+    
+    "TATASTEEL":"METAL","JSWSTEEL":"METAL","HINDALCO":"METAL",
+    
+    "SUNPHARMA":"PHARMA","DRREDDY":"PHARMA","CIPLA":"PHARMA",
+    
+    "HINDUNILVR":"FMCG","ITC":"FMCG","NESTLEIND":"FMCG",
+    
+    "LT":"INFRA",
+    "MARUTI":"AUTO",
+    "BHARTIARTL":"TELECOM"
+    
+    }
+    
+    df_new["Sector"] = df_new["Stock"].map(sector_map)
+    
+    df_new["SectorMomentum"] = (
+        df_new.groupby(["Sector","Datetime"])["Return"]
+        .transform("mean")
+    )
+    
+    df_new["RelativeStrengthSector"] = (
+        df_new["Return"] - df_new["SectorMomentum"]
+    )
+    # ================= CROSS SECTIONAL FEATURES =================
+
+    returns10 = df_new.groupby("Stock")["Close"].pct_change(10)
+    
+    df_new["PeerMomentum"] = (
+        returns10.groupby(df_new["Datetime"]).transform("mean")
+    )
+    
+    df_new["RelativeRank"] = (
+        df_new.groupby("Datetime")["Close"]
+        .pct_change(15)
+        .rank(pct=True)
+    )
+    
+    df_new["RelativeStrengthMarketIndia"] = (
+        df_new["Return"] - df_new["NiftyMomentum"]
+    )
+    
+    df_new["RelativeStrengthMarketUS"] = (
+        df_new["Return"] - df_new["SP500_return"]
+    )
+    # ================= MACRO FEATURES =================
+
+    macro_cols = [
+    "SP500_return",
+    "NASDAQ_return",
+    "CRUDE_return",
+    "USDINR_return"
+    ]
+    
+    for col in macro_cols:
+        if col not in df_new.columns:
+            df_new[col] = 0
+
+
+    # ================= INDEX FEATURES =================
+
+    index_cols = [
+    "NiftyMomentum",
+    "BankNiftyMomentum"
+    ]
+    
+    for col in index_cols:
+        if col not in df_new.columns:
+            df_new[col] = 0
+    
     # CLEANUP
     # ======================================================
     
