@@ -79,23 +79,17 @@ model = load_model()
 # Clear Cache
 st.cache_data.clear()
 
-# ====================== TODAY TIME WINDOW ======================
-
-
-latest = pd.read_sql_query(
-"""
+latest = pd.read_sql_query("""
 SELECT DISTINCT ON ("Stock")
     "Datetime","Stock","Pred","Return","TargetHit"
 FROM events
 WHERE "Pred" IS NOT NULL
-AND "Datetime" >= (
-    SELECT MAX(DATE("Datetime"))
-    FROM events
-)
 ORDER BY "Stock","Datetime" DESC
-""",
-engine
-)
+""", engine)
+
+# ====================== TODAY TIME WINDOW ======================
+
+
 
 # ====================== SIDEBAR FILTERS ======================
 st.sidebar.header("🎛️ Trading Filters")
