@@ -52,7 +52,7 @@ print("5Paisa login successful")
 engine = create_engine(CONNECTION_STRING,pool_pre_ping=True)
 print("Connected to Neon DB")
 ########################################################
-model = joblib.load("model.pkl")
+model = joblib.load("intraday_quant_model.pkl")
 
 # ===== DEBUG START =====
 print("MODEL FEATURES:")
