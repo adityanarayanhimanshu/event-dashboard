@@ -332,85 +332,68 @@ for stock, scrip in stocks.items():
         print("Error:",stock,e)
 
 # ====================== SAVE TO DATABASE ======================
+# ==================== SAVE TO DATABASE ====================
+
 if new_frames:
 
     df_new = pd.concat(new_frames, ignore_index=True)
-    for f in features:
+
+    # Ensure model features exist
+    for f in model.feature_names_in_:
         if f not in df_new.columns:
             df_new[f] = 0
-    
-    df_new[features] = df_new[features].fillna(0)
-    # Run predictions
-    
-        # ====================== MODEL PREDICTIONS ======================
-        
+
+    df_new[model.feature_names_in_] = df_new[model.feature_names_in_].fillna(0)
+
+    # ==================== DEBUG ====================
+    print("MODEL FEATURES:")
+    print(model.feature_names_in_)
+
+    print("LIVE FEATURES:")
+    print(df_new.columns.tolist())
+
+    print("DATA SAMPLE:")
+    print(df_new.head())
+
+    print("DATA STATS:")
+    print(df_new[model.feature_names_in_].describe())
+    # ===============================================
+
+    # ==================== MODEL PREDICTIONS ====================
+
     try:
-    
+
         df_new = df_new.sort_values(["Stock", "Datetime"])
 
-        preds = []
-    
-        # Sequential prediction to avoid look-ahead bias
-        for stock, g in df_new.groupby("Stock"):
-    
-            g = g.sort_values("Datetime")
-    
-            stock_preds = []
-    
-            for i in range(len(g)):
-    
-                g_slice = g.iloc[: i + 1]
-    
-                X_slice = g_slice[features]
-    
-                pred = model.predict_proba(X_slice.tail(1))[:,1][0]
-    
-                stock_preds.append(pred)
-    
-            preds.extend(stock_preds)
-    
-        df_new["Pred_raw"] = preds
-    
-        # ====================== SMOOTH PREDICTIONS ======================
-    
-        df_new["Pred"] = (
-            df_new.sort_values("Datetime")
-            .groupby("Stock")["Pred_raw"]
-            .transform(lambda x: x.rolling(3, min_periods=1).mean())
-        )
-    
-        # ====================== TIME OF DAY ADJUSTMENT ======================
-    
-        if ist_now.hour < 10:
-            df_new["Pred"] *= 0.95
-    
-        elif ist_now.hour > 14:
-            df_new["Pred"] *= 1.05
-    
+        X = df_new[model.feature_names_in_]
+
+        df_new["Pred"] = model.predict_proba(X)[:, 1]
+
     except Exception as e:
-    
-        print("Prediction failed:", e)
-    
-        df_new["Pred"] = None
-        
-        
-    # ====================== DUPLICATE PROTECTION ======================
-    
+        print("Prediction error:", e)
+        df_new["Pred"] = 0
+
+    # ==================== DUPLICATE PROTECTION ====================
+
     df_new = df_new[df_new["Datetime"].notna()]
-    df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
+    df_new = df_new.drop_duplicates(subset=["Stock", "Datetime"])
     df_new = df_new.reset_index(drop=True)
-    
-    # ===================== MATCH DATABASE SCHEMA =====================
+
+    # ==================== MATCH DATABASE SCHEMA ====================
+
     table_columns = pd.read_sql("SELECT * FROM events LIMIT 1", engine).columns
     df_new = df_new.loc[:, df_new.columns.intersection(table_columns)]
+
+    # ==================== BOOLEAN FIX ====================
 
     bool_cols = ["ORBWeakness"]
 
     for c in bool_cols:
         if c in df_new.columns:
             df_new[c] = df_new[c].astype(bool)
-    
-    # ===================== SAVE TO DATABASE =====================
+
+    # ==================== SAVE ====================
+
     df_new.to_sql(
         "events",
         engine,
@@ -418,7 +401,7 @@ if new_frames:
         index=False,
         chunksize=500
     )
-    
+
     print("Added rows:", len(df_new))
     
 else:
