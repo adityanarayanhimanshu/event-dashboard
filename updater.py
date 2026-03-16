@@ -59,16 +59,10 @@ print("MODEL FEATURES:")
 print(model.feature_names_in_)
 
 print("LIVE FEATURES:")
-print(df_new.columns.tolist())
 
-print("DATA SAMPLE:")
-print(df_new.head())
-
-print("DATA STATS:")
-print(df_new.describe())
 # ===== DEBUG END =====
 
-X = df_new[model.feature_names_in_]
+X = df_new.reindex(columns=model.feature_names_in_, fill_value=0)
 
 df_new["Pred"] = model.predict_proba(X)[:,1]
 print("Model loaded")
@@ -337,7 +331,8 @@ for stock, scrip in stocks.items():
 if new_frames:
 
     df_new = pd.concat(new_frames, ignore_index=True)
-
+    print("LIVE FEATURES:")
+    print(df_new.columns.tolist())
     # Ensure model features exist
     for f in model.feature_names_in_:
         if f not in df_new.columns:
