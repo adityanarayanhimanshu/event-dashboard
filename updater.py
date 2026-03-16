@@ -379,7 +379,7 @@ if new_frames:
         # ====================== DUPLICATE PROTECTION ======================
     df_new = df_new[df_new["Datetime"].notna()]
     df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
-    
+    df_new = df_new.reset_index(drop=True)
     
     # ====================== SAVE TO DATABASE ======================
     
@@ -388,8 +388,7 @@ if new_frames:
         engine,
         if_exists="append",
         index=False,
-        method="multi",
-        chunksize=5000
+        chunksize=1000
     )
     
     print("Added rows:", len(df_new))
