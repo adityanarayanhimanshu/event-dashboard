@@ -348,109 +348,123 @@ for stock, scrip in stocks.items():
     
         df_all["Sentiment"] = 0
     
+        # ================= MACRO + INDEX DATA =================
+
         import yfinance as yf
-    
-    # ================= MACRO FEATURES =================
-    
+        
+        # Ensure columns always exist
+        macro_cols = [
+            "SP500_return",
+            "NASDAQ_return",
+            "CRUDE_return",
+            "USDINR_return"
+        ]
+        
+        index_cols = [
+            "NiftyMomentum",
+            "BankNiftyMomentum"
+        ]
+        
+        for col in macro_cols + index_cols:
+            if col not in df_all.columns:
+                df_all[col] = np.nan
+        
+        
+        # ================= MACRO FEATURES =================
+        
         macro_tickers = {
             "SP500_return": "^GSPC",
             "NASDAQ_return": "^IXIC",
             "CRUDE_return": "CL=F",
             "USDINR_return": "INR=X"
         }
-    
+        
         for name, ticker in macro_tickers.items():
-    
+        
             data = yf.download(
                 ticker,
                 period="5d",
                 interval="5m",
                 progress=False
             )
-    
+        
             if not data.empty:
-    
+        
+                # Fix multi-index columns
                 if isinstance(data.columns, pd.MultiIndex):
                     data.columns = data.columns.get_level_values(0)
-    
+        
                 data = data.reset_index()
-    
+        
+                # Convert Yahoo UTC → IST
                 data["Datetime"] = (
                     pd.to_datetime(data["Datetime"], utc=True)
                     .dt.tz_convert("Asia/Kolkata")
                     .dt.tz_localize(None)
                 )
-    
+        
+                # Align to 5 minute candles
+                data["Datetime"] = data["Datetime"].dt.floor("5min")
+        
+                # Macro return
                 data[name] = data["Close"].pct_change()
-    
+        
+                # Merge using nearest earlier timestamp
                 df_all = pd.merge_asof(
                     df_all.sort_values("Datetime"),
                     data[["Datetime", name]].sort_values("Datetime"),
                     on="Datetime",
                     direction="backward"
                 )
-    
-    # ================= INDEX FEATURES =================
-    
+        
+        
+        # ================= INDEX FEATURES =================
+        
         index_tickers = {
             "NiftyMomentum": "^NSEI",
             "BankNiftyMomentum": "^NSEBANK"
         }
-    
-        # create columns first to avoid KeyError
-        df_all["NiftyMomentum"] = np.nan
-        df_all["BankNiftyMomentum"] = np.nan
-    
+        
         for name, ticker in index_tickers.items():
-    
+        
             data = yf.download(
                 ticker,
                 period="5d",
                 interval="5m",
                 progress=False
             )
-    
+        
             if not data.empty:
-    
+        
                 if isinstance(data.columns, pd.MultiIndex):
                     data.columns = data.columns.get_level_values(0)
-    
+        
                 data = data.reset_index()
-    
+        
+                # Convert timezone
                 data["Datetime"] = (
                     pd.to_datetime(data["Datetime"], utc=True)
                     .dt.tz_convert("Asia/Kolkata")
                     .dt.tz_localize(None)
                 )
-    
+        
+                # Align to 5 minute candles
+                data["Datetime"] = data["Datetime"].dt.floor("5min")
+        
+                # Index momentum
                 data[name] = data["Close"].pct_change(5)
-    
+        
                 df_all = pd.merge_asof(
                     df_all.sort_values("Datetime"),
                     data[["Datetime", name]].sort_values("Datetime"),
                     on="Datetime",
                     direction="backward"
                 )
-    
-    # ================= FORWARD FILL =================
-    
-        df_all[[
-            "SP500_return",
-            "NASDAQ_return",
-            "CRUDE_return",
-            "USDINR_return",
-            "NiftyMomentum",
-            "BankNiftyMomentum"
-        ]] = df_all[[
-            "SP500_return",
-            "NASDAQ_return",
-            "CRUDE_return",
-            "USDINR_return",
-            "NiftyMomentum",
-            "BankNiftyMomentum"
-        ]].ffill()
-    
-    # ================= FEATURE ENGINEERING =================
+        
+        
+        # ================= HANDLE YAHOO DELAYS =================
+        
+        df_all[macro_cols + index_cols] = df_all[macro_cols + index_cols].ffill()
     # ================= FEATURE ENGINEERING =================
 
     #df_new = df_new.sort_values(["Stock","Datetime"])
@@ -576,22 +590,50 @@ for stock, scrip in stocks.items():
     df_all["TimeBlock"] = df_all["Hour"]*60 + df_all["Minute"]
     # ---------------- ORB calculation ----------------
 
-    df_all["Date"] = df_all["Datetime"].dt.date
+# ================= ORB FEATURES =================
 
-    mask = df_all["TimeBlock"] <= (9*60 + 30)
+    df_all["Hour"] = df_all["Datetime"].dt.hour
+    df_all["Minute"] = df_all["Datetime"].dt.minute
     
-    df_all["ORBHigh"] = (
-        df_all["High"]
-        .where(mask)
-        .groupby([df_all["Stock"], df_all["Date"]])
-        .transform("max")
+    df_all["TimeBlock"] = df_all["Hour"] * 60 + df_all["Minute"]
+    
+    df_all["Date"] = df_all["Datetime"].dt.date
+    
+    # 9:15 → 9:25 (first 3 candles)
+    orb_window = (9*60 + 15) + 10
+    
+    mask = (
+        (df_all["TimeBlock"] >= 9*60 + 15) &
+        (df_all["TimeBlock"] < orb_window)
     )
     
-    df_all["ORBLow"] = (
-        df_all["Low"]
-        .where(mask)
-        .groupby([df_all["Stock"], df_all["Date"]])
-        .transform("min")
+    orb_high = (
+        df_all[mask]
+        .groupby(["Stock","Date"])["High"]
+        .max()
+        .reset_index()
+    )
+    
+    orb_low = (
+        df_all[mask]
+        .groupby(["Stock","Date"])["Low"]
+        .min()
+        .reset_index()
+    )
+    
+    orb_high.columns = ["Stock","Date","ORBHigh"]
+    orb_low.columns = ["Stock","Date","ORBLow"]
+    
+    df_all = df_all.merge(
+        orb_high,
+        on=["Stock","Date"],
+        how="left"
+    )
+    
+    df_all = df_all.merge(
+        orb_low,
+        on=["Stock","Date"],
+        how="left"
     )
     
     df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
