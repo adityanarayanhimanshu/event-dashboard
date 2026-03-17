@@ -417,7 +417,7 @@ if new_frames:
     
             # Merge using nearest earlier timestamp
             df_all = pd.merge_asof(
-                df_all,
+                df_all.sort_values("Datetime"),
                 data[["Datetime", name]].sort_values("Datetime"),
                 on="Datetime",
                 direction="backward"
@@ -461,7 +461,7 @@ if new_frames:
             data[name] = data["Close"].pct_change(5)
             
             df_all = pd.merge_asof(
-                df_all,
+                df_all.sort_values("Datetime"),
                 data[["Datetime", name]].sort_values("Datetime"),
                 on="Datetime",
                 direction="backward"
@@ -679,7 +679,7 @@ if new_frames:
     
     orb_high.columns = ["Stock","Date","ORBHigh"]
     orb_low.columns = ["Stock","Date","ORBLow"]
-    
+
     df_all = df_all.merge(
         orb_high,
         on=["Stock","Date"],
@@ -691,11 +691,7 @@ if new_frames:
         on=["Stock","Date"],
         how="left"
     )
-    if "ORBHigh" not in df_all.columns:
-        df_all["ORBHigh"] = np.nan
-    
-    if "ORBLow" not in df_all.columns:
-        df_all["ORBLow"] = np.nan
+
     df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
     df_all["ORBLow"] = df_all.groupby(["Stock","Date"])["ORBLow"].ffill()
     
@@ -811,11 +807,11 @@ if new_frames:
     
     
     df_all["RelativeStrengthMarketIndia"] = (
-        df_all["Return"] - df_all["NiftyMomentum"]
+    df_all["Return"] - df_all.get("NiftyMomentum",0)
     )
     
     df_all["RelativeStrengthMarketUS"] = (
-        df_all["Return"] - df_all["SP500_return"]
+        df_all["Return"] - df_all.get("SP500_return",0)
     )
 
     
