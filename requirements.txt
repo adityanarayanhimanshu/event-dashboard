@@ -12,3 +12,6 @@ scikit-learn
 lightgbm
 py5paisa
 yfinance
+accelerate
+sentencepiece
+torch
