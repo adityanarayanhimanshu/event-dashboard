@@ -374,7 +374,7 @@ if new_frames:
             data["Return"] = data["Close"].pct_change()
     
             data = data.reset_index()
-    
+            data["Datetime"] = pd.to_datetime(data["Datetime"]).dt.tz_localize(None)
             macro_data[name] = data[["Datetime","Return"]].rename(
                 columns={"Return":name}
             )
@@ -406,7 +406,7 @@ if new_frames:
             if isinstance(data.columns, pd.MultiIndex):
                 data.columns = data.columns.get_level_values(0)
             data = data.reset_index()
-    
+            data["Datetime"] = pd.to_datetime(data["Datetime"]).dt.tz_localize(None)
             data[name] = data["Close"].pct_change(5)
     
             df_all = df_all.merge(
