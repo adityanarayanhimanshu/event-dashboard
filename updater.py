@@ -892,14 +892,19 @@ if new_frames:
         df_new = df_new.drop(columns="_merge")
     
 
-    # ================= BOOLEAN FIX =================
+    # ================= BOOLEAN COLUMN FIX =================
 
-    bool_cols = ["ORBWeakness"]
-
-    for c in bool_cols:
-        if c in df_new.columns:
-            df_new[c] = df_new[c].astype(bool)
-
+    bool_cols = [
+        "ORBWeakness",
+        "MarketRegime_MeanReversion",
+        "MarketRegime_Neutral",
+        "MarketRegime_Panic",
+        "MarketRegime_VolatilityBreakout"
+    ]
+    
+    for col in bool_cols:
+        if col in df_new.columns:
+            df_new[col] = df_new[col].astype(bool)
     # ================= SAVE =================
 
     df_new.to_sql(
