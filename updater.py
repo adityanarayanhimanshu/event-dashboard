@@ -369,6 +369,8 @@ if new_frames:
     
         if not data.empty:
     
+            if isinstance(data.columns, pd.MultiIndex):
+                data.columns = data.columns.get_level_values(0)
             data["Return"] = data["Close"].pct_change()
     
             data = data.reset_index()
@@ -401,6 +403,8 @@ if new_frames:
     
         if not data.empty:
     
+            if isinstance(data.columns, pd.MultiIndex):
+                data.columns = data.columns.get_level_values(0)
             data = data.reset_index()
     
             data[name] = data["Close"].pct_change(5)
