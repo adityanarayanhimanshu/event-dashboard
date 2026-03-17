@@ -537,28 +537,28 @@ if new_frames:
     df_all["Hour"] = df_all["Datetime"].dt.hour
     df_all["Minute"] = df_all["Datetime"].dt.minute
     
-    df_all["TimeBlock"] = df_all["Hour"] * 60 + df_all["Minute"]
-    
-    orb_window_minutes = 15
+    # ---------------- ORB calculation ----------------
 
     df_all["Date"] = df_all["Datetime"].dt.date
-
+    
     mask = df_all["TimeBlock"] <= (9*60 + 30)
     
     orb_high = (
         df_all[mask]
-        .groupby(["Stock","Date"], as_index=False)["High"]
+        .groupby(["Stock","Date"])["High"]
         .max()
+        .reset_index()
     )
     
     orb_low = (
         df_all[mask]
-        .groupby(["Stock","Date"], as_index=False)["Low"]
+        .groupby(["Stock","Date"])["Low"]
         .min()
+        .reset_index()
     )
     
-    orb_high = orb_high.rename(columns={"High": "ORBHigh"})
-    orb_low = orb_low.rename(columns={"Low": "ORBLow"})
+    orb_high.columns = ["Stock","Date","ORBHigh"]
+    orb_low.columns = ["Stock","Date","ORBLow"]
     
     df_all = df_all.merge(
         orb_high,
@@ -572,8 +572,6 @@ if new_frames:
         how="left"
     )
     
-    df_all[["ORBHigh","ORBLow"]] = df_all[["ORBHigh","ORBLow"]].fillna(method="ffill")
-
     df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
     df_all["ORBLow"] = df_all.groupby(["Stock","Date"])["ORBLow"].ffill()
     
