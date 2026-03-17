@@ -476,37 +476,48 @@ if new_frames:
     # ================= LIVE NEWS SENTIMENT =================
 
     try:
-        news = pd.read_sql(
+
+        table_check = pd.read_sql(
             """
-            SELECT Datetime, Headline
-            FROM news
-            WHERE Datetime > NOW() - INTERVAL '1 day'
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_name='news'
             """,
             engine
         )
     
-        if not news.empty:
+        if not table_check.empty:
     
-            news["sent"] = news["Headline"].apply(
-                lambda x: sentiment_pipeline(x[:512])[0]["score"]
-                if isinstance(x,str) else 0
+            news = pd.read_sql(
+                """
+                SELECT Datetime, Headline
+                FROM news
+                WHERE Datetime > NOW() - INTERVAL '1 day'
+                """,
+                engine
             )
     
-            news["Datetime"] = pd.to_datetime(news["Datetime"])
+            if not news.empty:
     
-            news_sent = news.groupby(
-                news["Datetime"].dt.floor("5min")
-            )["sent"].mean().reset_index()
+                news["sent"] = news["Headline"].apply(
+                    lambda x: sentiment_pipeline(x[:512])[0]["score"]
+                    if isinstance(x,str) else 0
+                )
     
-            df_all = pd.merge_asof(
-                df_all.sort_values("Datetime"),
-                news_sent.sort_values("Datetime"),
-                on="Datetime",
-                direction="backward"
-            )
+                news["Datetime"] = pd.to_datetime(news["Datetime"])
     
-            df_all["Sentiment"] = df_all["sent"].fillna(0)
-            df_all = df_all.drop(columns="sent", errors="ignore")
+                news_sent = news.groupby(
+                    news["Datetime"].dt.floor("5min")
+                )["sent"].mean().reset_index()
+    
+                df_all = pd.merge_asof(
+                    df_all.sort_values("Datetime"),
+                    news_sent.sort_values("Datetime"),
+                    on="Datetime",
+                    direction="backward"
+                )
+    
+                df_all["Sentiment"] = df_all["sent"].fillna(0)
     
     except Exception as e:
         print("Sentiment error:", e)
@@ -680,7 +691,11 @@ if new_frames:
         on=["Stock","Date"],
         how="left"
     )
+    if "ORBHigh" not in df_all.columns:
+        df_all["ORBHigh"] = np.nan
     
+    if "ORBLow" not in df_all.columns:
+        df_all["ORBLow"] = np.nan
     df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
     df_all["ORBLow"] = df_all.groupby(["Stock","Date"])["ORBLow"].ffill()
     
