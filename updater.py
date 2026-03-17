@@ -8,7 +8,7 @@ from py5paisa import FivePaisaClient
 import joblib
 import numpy as np
 
-
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
 # ====================== IMPORT CONFIG ======================
 from config import cred, client_code, mpin, totp_key
 
@@ -54,7 +54,16 @@ engine = create_engine(CONNECTION_STRING,pool_pre_ping=True)
 print("Connected to Neon DB")
 ########################################################
 model = joblib.load("intraday_quant_model.pkl")
+# ================= SENTIMENT MODEL =================
 
+tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
+sent_model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
+
+sentiment_pipeline = pipeline(
+    "sentiment-analysis",
+    model=sent_model,
+    tokenizer=tokenizer
+)
 # ===== DEBUG START =====
 print("MODEL FEATURES:")
 print(model.feature_names_in_)
@@ -346,12 +355,7 @@ if new_frames:
 
     df_all = df_all.sort_values(["Stock","Datetime"]).reset_index(drop=True)
 
-    df_all["Sentiment"] = 0
-
-    # ================= MACRO + INDEX DATA =================
-
-    import yfinance as yf
-    
+    df_all["Sentiment"] = 0.0
     df_all = df_all.sort_values("Datetime")
     macro_cols = [
         "SP500_return",
@@ -368,6 +372,10 @@ if new_frames:
     for col in macro_cols + index_cols:
         if col not in df_all.columns:
             df_all[col] = np.nan
+    # ================= MACRO + INDEX DATA =================
+
+    import yfinance as yf
+    
     # ================= MACRO FEATURES =================
     
     macro_tickers = {
@@ -462,7 +470,46 @@ if new_frames:
     
     # ================= HANDLE YAHOO DELAYS =================
     
-    df_all[macro_cols + index_cols] = df_all[macro_cols + index_cols].ffill()
+    existing_cols = [c for c in macro_cols + index_cols if c in df_all.columns]
+    df_all[existing_cols] = df_all[existing_cols].ffill()
+
+    # ================= LIVE NEWS SENTIMENT =================
+
+    try:
+        news = pd.read_sql(
+            """
+            SELECT Datetime, Headline
+            FROM news
+            WHERE Datetime > NOW() - INTERVAL '1 day'
+            """,
+            engine
+        )
+    
+        if not news.empty:
+    
+            news["sent"] = news["Headline"].apply(
+                lambda x: sentiment_pipeline(x[:512])[0]["score"]
+                if isinstance(x,str) else 0
+            )
+    
+            news["Datetime"] = pd.to_datetime(news["Datetime"])
+    
+            news_sent = news.groupby(
+                news["Datetime"].dt.floor("5min")
+            )["sent"].mean().reset_index()
+    
+            df_all = pd.merge_asof(
+                df_all.sort_values("Datetime"),
+                news_sent.sort_values("Datetime"),
+                on="Datetime",
+                direction="backward"
+            )
+    
+            df_all["Sentiment"] = df_all["sent"].fillna(0)
+            df_all = df_all.drop(columns="sent", errors="ignore")
+    
+    except Exception as e:
+        print("Sentiment error:", e)
     # ================= FEATURE ENGINEERING =================
 
     #df_new = df_new.sort_values(["Stock","Datetime"])
