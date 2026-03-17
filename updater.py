@@ -549,22 +549,24 @@ if new_frames:
         df_all[mask]
         .groupby(["Stock","Date"])["High"]
         .max()
+        .reset_index()
     )
     
     orb_low = (
         df_all[mask]
         .groupby(["Stock","Date"])["Low"]
         .min()
+        .reset_index()
     )
     
     df_all = df_all.merge(
-        orb_high.rename("ORBHigh"),
+        orb_high.rename(columns={"High":"ORBHigh"}),
         on=["Stock","Date"],
         how="left"
     )
     
     df_all = df_all.merge(
-        orb_low.rename("ORBLow"),
+        orb_low.rename(columns={"Low":"ORBLow"}),
         on=["Stock","Date"],
         how="left"
     )
