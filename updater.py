@@ -323,148 +323,146 @@ for stock, scrip in stocks.items():
 # ====================== SAVE TO DATABASE ======================
 # ==================== SAVE TO DATABASE ====================
 
-    if new_frames:
+if new_frames:
     
-        df_new = pd.concat(new_frames, ignore_index=True)
+    df_new = pd.concat(new_frames, ignore_index=True)
+
+    # ================= LOAD RECENT HISTORY =================
+
+    history = pd.read_sql(
+        """
+        SELECT *
+        FROM events
+        WHERE "Datetime" > NOW() - INTERVAL '5 days'
+        """,
+        engine
+    )
+
+    if not history.empty:
+        history["Datetime"] = pd.to_datetime(history["Datetime"])
+        df_all = pd.concat([history, df_new], ignore_index=True)
+    else:
+        df_all = df_new.copy()
+
+    df_all = df_all.sort_values(["Stock","Datetime"]).reset_index(drop=True)
+
+    df_all["Sentiment"] = 0
+
+    # ================= MACRO + INDEX DATA =================
+
+    import yfinance as yf
     
-        # ================= LOAD RECENT HISTORY =================
+    df_all = df_all.sort_values("Datetime")
+    macro_cols = [
+        "SP500_return",
+        "NASDAQ_return",
+        "CRUDE_return",
+        "USDINR_return"
+    ]
     
-        history = pd.read_sql(
-            """
-            SELECT *
-            FROM events
-            WHERE "Datetime" > NOW() - INTERVAL '5 days'
-            """,
-            engine
+    index_cols = [
+        "NiftyMomentum",
+        "BankNiftyMomentum"
+    ]
+    
+    for col in macro_cols + index_cols:
+        if col not in df_all.columns:
+            df_all[col] = np.nan
+    # ================= MACRO FEATURES =================
+    
+    macro_tickers = {
+        "SP500_return": "^GSPC",
+        "NASDAQ_return": "^IXIC",
+        "CRUDE_return": "CL=F",
+        "USDINR_return": "INR=X"
+    }
+    
+    for name, ticker in macro_tickers.items():
+    
+        data = yf.download(
+            ticker,
+            period="5d",
+            interval="5m",
+            progress=False
         )
     
-        if not history.empty:
-            history["Datetime"] = pd.to_datetime(history["Datetime"])
-            df_all = pd.concat([history, df_new], ignore_index=True)
-        else:
-            df_all = df_new.copy()
+        if not data.empty:
     
-        df_all = df_all.sort_values(["Stock","Datetime"]).reset_index(drop=True)
+            # Fix multi-index columns
+            if isinstance(data.columns, pd.MultiIndex):
+                data.columns = data.columns.get_level_values(0)
     
-        df_all["Sentiment"] = 0
+            data = data.reset_index()
     
-        # ================= MACRO + INDEX DATA =================
-
-        import yfinance as yf
-        
-        # Ensure columns always exist
-        macro_cols = [
-            "SP500_return",
-            "NASDAQ_return",
-            "CRUDE_return",
-            "USDINR_return"
-        ]
-        
-        index_cols = [
-            "NiftyMomentum",
-            "BankNiftyMomentum"
-        ]
-        
-        for col in macro_cols + index_cols:
-            if col not in df_all.columns:
-                df_all[col] = np.nan
-        
-        
-        # ================= MACRO FEATURES =================
-        
-        macro_tickers = {
-            "SP500_return": "^GSPC",
-            "NASDAQ_return": "^IXIC",
-            "CRUDE_return": "CL=F",
-            "USDINR_return": "INR=X"
-        }
-        
-        for name, ticker in macro_tickers.items():
-        
-            data = yf.download(
-                ticker,
-                period="5d",
-                interval="5m",
-                progress=False
+            # Convert Yahoo UTC → IST
+            data["Datetime"] = (
+                pd.to_datetime(data["Datetime"], utc=True)
+                .dt.tz_convert("Asia/Kolkata")
+                .dt.tz_localize(None)
             )
-        
-            if not data.empty:
-        
-                # Fix multi-index columns
-                if isinstance(data.columns, pd.MultiIndex):
-                    data.columns = data.columns.get_level_values(0)
-        
-                data = data.reset_index()
-        
-                # Convert Yahoo UTC → IST
-                data["Datetime"] = (
-                    pd.to_datetime(data["Datetime"], utc=True)
-                    .dt.tz_convert("Asia/Kolkata")
-                    .dt.tz_localize(None)
-                )
-        
-                # Align to 5 minute candles
-                data["Datetime"] = data["Datetime"].dt.floor("5min")
-        
-                # Macro return
-                data[name] = data["Close"].pct_change()
-        
-                # Merge using nearest earlier timestamp
-                df_all = pd.merge_asof(
-                    df_all.sort_values("Datetime"),
-                    data[["Datetime", name]].sort_values("Datetime"),
-                    on="Datetime",
-                    direction="backward"
-                )
-        
-        
-        # ================= INDEX FEATURES =================
-        
-        index_tickers = {
-            "NiftyMomentum": "^NSEI",
-            "BankNiftyMomentum": "^NSEBANK"
-        }
-        
-        for name, ticker in index_tickers.items():
-        
-            data = yf.download(
-                ticker,
-                period="5d",
-                interval="5m",
-                progress=False
+    
+            # Align to 5 minute candles
+            data["Datetime"] = data["Datetime"].dt.floor("5min")
+    
+            # Macro return
+            data[name] = data["Close"].pct_change()
+    
+            # Merge using nearest earlier timestamp
+            df_all = pd.merge_asof(
+                df_all,
+                data[["Datetime", name]].sort_values("Datetime"),
+                on="Datetime",
+                direction="backward"
             )
-        
-            if not data.empty:
-        
-                if isinstance(data.columns, pd.MultiIndex):
-                    data.columns = data.columns.get_level_values(0)
-        
-                data = data.reset_index()
-        
-                # Convert timezone
-                data["Datetime"] = (
-                    pd.to_datetime(data["Datetime"], utc=True)
-                    .dt.tz_convert("Asia/Kolkata")
-                    .dt.tz_localize(None)
-                )
-        
-                # Align to 5 minute candles
-                data["Datetime"] = data["Datetime"].dt.floor("5min")
-        
-                # Index momentum
-                data[name] = data["Close"].pct_change(5)
-        
-                df_all = pd.merge_asof(
-                    df_all.sort_values("Datetime"),
-                    data[["Datetime", name]].sort_values("Datetime"),
-                    on="Datetime",
-                    direction="backward"
-                )
-        
-        
-        # ================= HANDLE YAHOO DELAYS =================
-        
-        df_all[macro_cols + index_cols] = df_all[macro_cols + index_cols].ffill()
+    
+    
+    # ================= INDEX FEATURES =================
+    
+    index_tickers = {
+        "NiftyMomentum": "^NSEI",
+        "BankNiftyMomentum": "^NSEBANK"
+    }
+    
+    for name, ticker in index_tickers.items():
+    
+        data = yf.download(
+            ticker,
+            period="5d",
+            interval="5m",
+            progress=False
+        )
+    
+        if not data.empty:
+    
+            if isinstance(data.columns, pd.MultiIndex):
+                data.columns = data.columns.get_level_values(0)
+    
+            data = data.reset_index()
+    
+            # Convert timezone
+            data["Datetime"] = (
+                pd.to_datetime(data["Datetime"], utc=True)
+                .dt.tz_convert("Asia/Kolkata")
+                .dt.tz_localize(None)
+            )
+    
+            # Align to 5 minute candles
+            data["Datetime"] = data["Datetime"].dt.floor("5min")
+    
+            # Index momentum
+            data[name] = data["Close"].pct_change(5)
+            
+            df_all = pd.merge_asof(
+                df_all,
+                data[["Datetime", name]].sort_values("Datetime"),
+                on="Datetime",
+                direction="backward"
+            )
+    
+    
+    # ================= HANDLE YAHOO DELAYS =================
+    
+    df_all[macro_cols + index_cols] = df_all[macro_cols + index_cols].ffill()
     # ================= FEATURE ENGINEERING =================
 
     #df_new = df_new.sort_values(["Stock","Datetime"])
@@ -749,11 +747,6 @@ for stock, scrip in stocks.items():
         returns10.groupby(df_all["Datetime"]).transform("mean")
     )
     
-    df_all["RelativeRank"] = (
-        df_all.groupby("Datetime")["Close"]
-        .pct_change(15)
-        .rank(pct=True)
-    )
     
     df_all["RelativeStrengthMarketIndia"] = (
         df_all["Return"] - df_all["NiftyMomentum"]
@@ -762,30 +755,7 @@ for stock, scrip in stocks.items():
     df_all["RelativeStrengthMarketUS"] = (
         df_all["Return"] - df_all["SP500_return"]
     )
-    # ================= MACRO FEATURES =================
 
-    macro_cols = [
-    "SP500_return",
-    "NASDAQ_return",
-    "CRUDE_return",
-    "USDINR_return"
-    ]
-    
-    for col in macro_cols:
-        if col not in df_all.columns:
-            df_all[col] = 0
-
-
-    # ================= INDEX FEATURES =================
-
-    index_cols = [
-    "NiftyMomentum",
-    "BankNiftyMomentum"
-    ]
-    
-    for col in index_cols:
-        if col not in df_all.columns:
-            df_all[col] = 0
     
     # CLEANUP
     # ======================================================
