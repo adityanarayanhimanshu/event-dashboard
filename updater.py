@@ -900,10 +900,10 @@ if new_frames:
         "MarketRegime_Neutral",
         "MarketRegime_Panic",
         "MarketRegime_VolatilityBreakout",
-        "MarketOpen",
-        "TargetHit"
+        "MarketOpen"
     ]
-    
+    if "TargetHit" in df_new.columns:
+        df_new["TargetHit"] = df_new["TargetHit"].astype(int)
     for col in bool_cols:
         if col in df_new.columns:
             df_new[col] = df_new[col].astype(bool)
