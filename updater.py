@@ -645,7 +645,7 @@ if new_frames:
     df_all["Minute"] = df_all["Datetime"].dt.minute
     df_all["TimeBlock"] = df_all["Hour"]*60 + df_all["Minute"]
     # ---------------- ORB calculation ----------------
-
+    df_all = df_all.sort_values(["Stock","Datetime"])
 # ================= ORB FEATURES =================
 
     df_all["Hour"] = df_all["Datetime"].dt.hour
@@ -691,7 +691,15 @@ if new_frames:
         on=["Stock","Date"],
         how="left"
     )
-
+    
+    # ---------- ADD THIS FIX ----------
+    if "ORBHigh" not in df_all.columns:
+        df_all["ORBHigh"] = np.nan
+    
+    if "ORBLow" not in df_all.columns:
+        df_all["ORBLow"] = np.nan
+    # ----------------------------------
+    
     df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
     df_all["ORBLow"] = df_all.groupby(["Stock","Date"])["ORBLow"].ffill()
     
