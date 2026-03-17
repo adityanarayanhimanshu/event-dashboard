@@ -899,7 +899,9 @@ if new_frames:
         "MarketRegime_MeanReversion",
         "MarketRegime_Neutral",
         "MarketRegime_Panic",
-        "MarketRegime_VolatilityBreakout"
+        "MarketRegime_VolatilityBreakout",
+        "MarketOpen",
+        "TargetHit"
     ]
     
     for col in bool_cols:
