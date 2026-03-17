@@ -8,6 +8,7 @@ from py5paisa import FivePaisaClient
 import joblib
 import numpy as np
 
+
 # ====================== IMPORT CONFIG ======================
 from config import cred, client_code, mpin, totp_key
 
@@ -344,7 +345,7 @@ if new_frames:
         df_all = df_new.copy()
         
     df_all = df_all.sort_values(["Stock","Datetime"]).reset_index(drop=True)
-
+    df_all["Sentiment"] = 0
 
     import yfinance as yf
 
@@ -415,12 +416,7 @@ if new_frames:
     
     # Basic returns
     df_all["Return"] = df_all.groupby("Stock")["Close"].pct_change()
-    from transformers import pipeline
-
-    sentiment_analyzer = pipeline(
-        "sentiment-analysis",
-        model="ProsusAI/finbert"
-    )
+    
     # Momentum
     df_all["Momentum5"] = df_all.groupby("Stock")["Close"].pct_change(5)
     df_all["Momentum15"] = df_all.groupby("Stock")["Close"].pct_change(15)
@@ -536,40 +532,25 @@ if new_frames:
     # Time feature
     df_all["Hour"] = df_all["Datetime"].dt.hour
     df_all["Minute"] = df_all["Datetime"].dt.minute
-    
+    df_all["TimeBlock"] = df_all["Hour"]*60 + df_all["Minute"]
     # ---------------- ORB calculation ----------------
 
     df_all["Date"] = df_all["Datetime"].dt.date
-    
+
     mask = df_all["TimeBlock"] <= (9*60 + 30)
     
-    orb_high = (
-        df_all[mask]
-        .groupby(["Stock","Date"])["High"]
-        .max()
-        .reset_index()
+    df_all["ORBHigh"] = (
+        df_all["High"]
+        .where(mask)
+        .groupby([df_all["Stock"], df_all["Date"]])
+        .transform("max")
     )
     
-    orb_low = (
-        df_all[mask]
-        .groupby(["Stock","Date"])["Low"]
-        .min()
-        .reset_index()
-    )
-    
-    orb_high.columns = ["Stock","Date","ORBHigh"]
-    orb_low.columns = ["Stock","Date","ORBLow"]
-    
-    df_all = df_all.merge(
-        orb_high,
-        on=["Stock","Date"],
-        how="left"
-    )
-    
-    df_all = df_all.merge(
-        orb_low,
-        on=["Stock","Date"],
-        how="left"
+    df_all["ORBLow"] = (
+        df_all["Low"]
+        .where(mask)
+        .groupby([df_all["Stock"], df_all["Date"]])
+        .transform("min")
     )
     
     df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
