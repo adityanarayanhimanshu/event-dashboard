@@ -840,7 +840,11 @@ if new_frames:
 
     try:
 
-        #df_new = df_new.sort_values(["Stock", "Datetime"])
+        drop_cols = [c for c in df_all.columns if c.endswith("_x") or c.endswith("_y")]
+        df_all = df_all.drop(columns=drop_cols, errors="ignore")
+
+        print("Model expects:", len(model.feature_names_in_))
+        print("Columns available:", len(df_all.columns))
 
         X = df_all[model.feature_names_in_]
 
