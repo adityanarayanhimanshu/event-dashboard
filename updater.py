@@ -510,8 +510,8 @@ if new_frames:
                     news.loc[valid_mask, "sent"] = [r["score"] for r in results]
             
                 news["sent"] = news["sent"].fillna(0)
-                else:
-                    news["sent"] = 0
+            else:
+                news["sent"] = 0
     
                 news["Datetime"] = pd.to_datetime(news["Datetime"])
     
