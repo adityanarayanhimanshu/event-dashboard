@@ -865,6 +865,22 @@ if new_frames:
         print("Model expects:", len(model.feature_names_in_))
         print("Columns available:", len(df_all.columns))
 
+        # ================= FIX STARTS HERE =================
+
+        X = df_all[model.feature_names_in_].copy()
+    
+        # 🔥 CRITICAL FIX
+        X = X.apply(pd.to_numeric, errors='coerce')
+        X = X.fillna(0)
+    
+        # 🔍 DEBUG (VERY IMPORTANT)
+        print("Shape of X:", X.shape)
+        print("Any NaN:", X.isna().sum().sum())
+        print("Dtypes:\n", X.dtypes.value_counts())
+        print("Sample:\n", X.head())
+    
+        # ================= FIX ENDS HERE =================
+        
         X = df_all[model.feature_names_in_]
 
         df_all["Pred"] = model.predict_proba(X)[:,1]
