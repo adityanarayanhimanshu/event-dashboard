@@ -498,11 +498,20 @@ if new_frames:
             )
     
             if not news.empty:
-    
-                news["sent"] = news["Headline"].apply(
-                    lambda x: sentiment_pipeline(x[:512])[0]["score"]
-                    if isinstance(x,str) else 0
-                )
+                news = news.copy()
+
+                valid_mask = news["Headline"].notna()
+            
+                texts = news.loc[valid_mask, "Headline"].astype(str).str[:512].tolist()
+            
+                if texts:
+                    results = sentiment_pipeline(texts, batch_size=16)
+            
+                    news.loc[valid_mask, "sent"] = [r["score"] for r in results]
+            
+                news["sent"] = news["sent"].fillna(0)
+                else:
+                    news["sent"] = 0
     
                 news["Datetime"] = pd.to_datetime(news["Datetime"])
     
@@ -835,7 +844,16 @@ if new_frames:
             df_all[f] = 0
 
     df_all[model.feature_names_in_] = df_all[model.feature_names_in_].fillna(0)
+    # ================= CLEAN DUPLICATE COLUMNS =================
 
+    drop_cols = [c for c in df_all.columns if c.endswith("_x") or c.endswith("_y")]
+    
+    if drop_cols:
+        print("Dropping cols:", drop_cols[:10])
+    
+    df_all.drop(columns=drop_cols, inplace=True, errors="ignore")
+    
+    print("Columns after cleanup:", len(df_all.columns))
     # ================= MODEL PREDICTIONS =================
 
     try:
