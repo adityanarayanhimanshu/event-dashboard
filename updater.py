@@ -841,6 +841,7 @@ if new_frames:
     try:
 
         drop_cols = [c for c in df_all.columns if c.endswith("_x") or c.endswith("_y")]
+        print("Dropped cols:", drop_cols[:5])
         df_all = df_all.drop(columns=drop_cols, errors="ignore")
 
         print("Model expects:", len(model.feature_names_in_))
