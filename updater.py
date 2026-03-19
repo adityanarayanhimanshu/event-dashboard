@@ -414,7 +414,11 @@ if new_frames:
         data["Datetime"] = data["Datetime"].dt.floor("5min")
     
         data[name] = data["Close"].pct_change()
-    
+
+        # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
+        if name in df_all.columns:
+            df_all = df_all.drop(columns=[name])
+        
         df_all = pd.merge_asof(
             df_all.sort_values("Datetime"),
             data[["Datetime", name]].sort_values("Datetime"),
@@ -459,6 +463,10 @@ if new_frames:
     
         data[name] = data["Close"].pct_change()
         data[name] = data[name].clip(-0.01, 0.01)
+
+        # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
+        if name in df_all.columns:
+            df_all = df_all.drop(columns=[name])
     
         df_all = pd.merge_asof(
             df_all.sort_values("Datetime"),
@@ -488,6 +496,7 @@ if new_frames:
     existing_cols = [c for c in macro_cols + index_cols if c in df_all.columns]
     df_all[existing_cols] = df_all[existing_cols].ffill()
     df_all[existing_cols] = df_all[existing_cols].fillna(0)
+    df_all[existing_cols] = df_all[existing_cols].astype(float)
     # ================= LIVE NEWS SENTIMENT =================
 
     try:
@@ -866,7 +875,7 @@ if new_frames:
         print("Dropping cols:", drop_cols[:10])
     
     df_all.drop(columns=drop_cols, inplace=True, errors="ignore")
-    
+    df_all = df_all.replace([np.inf, -np.inf], 0)
     print("Columns after cleanup:", len(df_all.columns))
     print("Final market columns check:")
     print(df_all[required_cols].isna().sum())
@@ -887,7 +896,7 @@ if new_frames:
     
         # 🔥 CRITICAL FIX
         X = X.apply(pd.to_numeric, errors='coerce')
-        X = X.fillna(method="ffill").fillna(0)
+        X = X.ffill().fillna(0)
     
         # 🔍 DEBUG (VERY IMPORTANT)
         print("Shape of X:", X.shape)
@@ -956,7 +965,7 @@ if new_frames:
         "MarketOpen"
     ]
     if "TargetHit" in df_new.columns:
-        df_new["TargetHit"] = df_new["TargetHit"].astype(int)
+        df_new["TargetHit"] = df_new["TargetHit"].fillna(0).astype(int)
     for col in bool_cols:
         if col in df_new.columns:
             df_new[col] = df_new[col].astype(bool)
