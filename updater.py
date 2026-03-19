@@ -458,13 +458,14 @@ if new_frames:
             data["Datetime"] = data["Datetime"].dt.floor("5min")
     
             # Index momentum
-            data[name] = data["Close"].pct_change(5)
-            
+            data[name] = data["Close"].pct_change()
+            data[name] = data[name].clip(-0.01, 0.01)
             df_all = pd.merge_asof(
                 df_all.sort_values("Datetime"),
                 data[["Datetime", name]].sort_values("Datetime"),
                 on="Datetime",
-                direction="backward"
+                direction="backward",
+                tolerance=pd.Timedelta("10min")
             )
     
     
@@ -523,7 +524,8 @@ if new_frames:
                     df_all.sort_values("Datetime"),
                     news_sent.sort_values("Datetime"),
                     on="Datetime",
-                    direction="backward"
+                    direction="backward",
+                    tolerance=pd.Timedelta("10min")
                 )
     
                 df_all["Sentiment"] = df_all["sent"].fillna(0)
@@ -719,11 +721,15 @@ if new_frames:
         .pct_change(3)
         .shift(2)
     )
-    
+    df_all["Return15"] = (
+        0.5 * df_all.groupby("Stock")["Close"].pct_change(5) +
+        0.3 * df_all.groupby("Stock")["Close"].pct_change(15) +
+        0.2 * df_all.groupby("Stock")["Close"].pct_change(30)
+    )
+    df_all["Return15"] = df_all["Return15"].clip(-0.1, 0.1)
     # Relative rank
     df_all["RelativeRank"] = (
-        df_all.groupby("Datetime")["Close"]
-        .pct_change(15)
+        df_all.groupby("Datetime")["Return15"]
         .rank(pct=True)
     )
     
@@ -866,8 +872,6 @@ if new_frames:
         print("Sample:\n", X.head())
     
         # ================= FIX ENDS HERE =================
-        
-        X = df_all[model.feature_names_in_]
 
         df_all["Pred"] = model.predict_proba(X)[:,1]
         df_new = df_all[df_all["Datetime"].isin(df_new["Datetime"])]
