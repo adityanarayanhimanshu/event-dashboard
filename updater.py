@@ -386,7 +386,7 @@ if new_frames:
     }
     
     for name, ticker in macro_tickers.items():
-    
+
         data = yf.download(
             ticker,
             period="5d",
@@ -394,34 +394,33 @@ if new_frames:
             progress=False
         )
     
-        if not data.empty:
+        if data.empty:
+            print(f"{name} missing from Yahoo → filling fallback")
+            df_all[name] = np.nan
+            continue
     
-            # Fix multi-index columns
-            if isinstance(data.columns, pd.MultiIndex):
-                data.columns = data.columns.get_level_values(0)
+        # Fix multi-index columns
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
     
-            data = data.reset_index()
+        data = data.reset_index()
     
-            # Convert Yahoo UTC → IST
-            data["Datetime"] = (
-                pd.to_datetime(data["Datetime"], utc=True)
-                .dt.tz_convert("Asia/Kolkata")
-                .dt.tz_localize(None)
-            )
+        data["Datetime"] = (
+            pd.to_datetime(data["Datetime"], utc=True)
+            .dt.tz_convert("Asia/Kolkata")
+            .dt.tz_localize(None)
+        )
     
-            # Align to 5 minute candles
-            data["Datetime"] = data["Datetime"].dt.floor("5min")
+        data["Datetime"] = data["Datetime"].dt.floor("5min")
     
-            # Macro return
-            data[name] = data["Close"].pct_change()
+        data[name] = data["Close"].pct_change()
     
-            # Merge using nearest earlier timestamp
-            df_all = pd.merge_asof(
-                df_all.sort_values("Datetime"),
-                data[["Datetime", name]].sort_values("Datetime"),
-                on="Datetime",
-                direction="backward"
-            )
+        df_all = pd.merge_asof(
+            df_all.sort_values("Datetime"),
+            data[["Datetime", name]].sort_values("Datetime"),
+            on="Datetime",
+            direction="backward"
+        )
     
     
     # ================= INDEX FEATURES =================
@@ -432,7 +431,7 @@ if new_frames:
     }
     
     for name, ticker in index_tickers.items():
-    
+
         data = yf.download(
             ticker,
             period="5d",
@@ -440,40 +439,55 @@ if new_frames:
             progress=False
         )
     
-        if not data.empty:
+        if data.empty:
+            print(f"{name} missing from Yahoo → filling fallback")
+            df_all[name] = np.nan
+            continue
     
-            if isinstance(data.columns, pd.MultiIndex):
-                data.columns = data.columns.get_level_values(0)
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
     
-            data = data.reset_index()
+        data = data.reset_index()
     
-            # Convert timezone
-            data["Datetime"] = (
-                pd.to_datetime(data["Datetime"], utc=True)
-                .dt.tz_convert("Asia/Kolkata")
-                .dt.tz_localize(None)
-            )
+        data["Datetime"] = (
+            pd.to_datetime(data["Datetime"], utc=True)
+            .dt.tz_convert("Asia/Kolkata")
+            .dt.tz_localize(None)
+        )
     
-            # Align to 5 minute candles
-            data["Datetime"] = data["Datetime"].dt.floor("5min")
+        data["Datetime"] = data["Datetime"].dt.floor("5min")
     
-            # Index momentum
-            data[name] = data["Close"].pct_change()
-            data[name] = data[name].clip(-0.01, 0.01)
-            df_all = pd.merge_asof(
-                df_all.sort_values("Datetime"),
-                data[["Datetime", name]].sort_values("Datetime"),
-                on="Datetime",
-                direction="backward",
-                tolerance=pd.Timedelta("30min")
-            )
+        data[name] = data["Close"].pct_change()
+        data[name] = data[name].clip(-0.01, 0.01)
     
+        df_all = pd.merge_asof(
+            df_all.sort_values("Datetime"),
+            data[["Datetime", name]].sort_values("Datetime"),
+            on="Datetime",
+            direction="backward",
+            tolerance=pd.Timedelta("30min")
+        )
     
+    # ================= FORCE ALL MARKET COLUMNS =================
+
+    required_cols = [
+        "SP500_return",
+        "NASDAQ_return",
+        "CRUDE_return",
+        "USDINR_return",
+        "NiftyMomentum",
+        "BankNiftyMomentum"
+    ]
+    
+    for col in required_cols:
+        if col not in df_all.columns:
+            print(f"FORCE ADD: {col}")
+            df_all[col] = 0
     # ================= HANDLE YAHOO DELAYS =================
     
     existing_cols = [c for c in macro_cols + index_cols if c in df_all.columns]
     df_all[existing_cols] = df_all[existing_cols].ffill()
-
+    df_all[existing_cols] = df_all[existing_cols].fillna(0)
     # ================= LIVE NEWS SENTIMENT =================
 
     try:
@@ -814,8 +828,7 @@ if new_frames:
         returns10.groupby(df_all["Datetime"]).transform("mean")
     )
     
-    if "NiftyMomentum" not in df_all.columns:
-        df_all["NiftyMomentum"] = np.nan
+
     df_all["RelativeStrengthMarketIndia"] = (
     df_all["Return"] - df_all["NiftyMomentum"]
     )
@@ -855,6 +868,8 @@ if new_frames:
     df_all.drop(columns=drop_cols, inplace=True, errors="ignore")
     
     print("Columns after cleanup:", len(df_all.columns))
+    print("Final market columns check:")
+    print(df_all[required_cols].isna().sum())
     # ================= MODEL PREDICTIONS =================
 
     try:
