@@ -907,7 +907,14 @@ if new_frames:
         # ================= FIX ENDS HERE =================
 
         df_all["Pred"] = model.predict_proba(X)[:,1]
-        df_new = df_all[df_all["Datetime"].isin(df_new["Datetime"])]
+        # Keep only newly added rows properly
+        new_times = df_new[["Stock", "Datetime"]].drop_duplicates()
+        
+        df_new = df_all.merge(
+            new_times,
+            on=["Stock", "Datetime"],
+            how="inner"
+        )
 
     except Exception as e:
 
@@ -922,7 +929,11 @@ if new_frames:
     df_new = df_new.drop_duplicates(subset=["Stock","Datetime"])
 
     df_new = df_new.reset_index(drop=True)
-
+    df_new = df_new.replace([np.inf, -np.inf], 0)
+    df_new = df_new.fillna(0)
+    if df_new.empty:
+        print("⚠️ df_new empty after filtering — skipping insert")
+        sys.exit(0)
     # ================= MATCH DATABASE SCHEMA =================
 
     table_columns = pd.read_sql("SELECT * FROM events LIMIT 1", engine).columns
