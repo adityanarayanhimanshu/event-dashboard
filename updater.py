@@ -654,66 +654,52 @@ if new_frames:
     df_all["Minute"] = df_all["Datetime"].dt.minute
     df_all["TimeBlock"] = df_all["Hour"]*60 + df_all["Minute"]
     # ---------------- ORB calculation ----------------
-    df_all = df_all.sort_values(["Stock","Datetime"])
-# ================= ORB FEATURES =================
-
-    df_all["Hour"] = df_all["Datetime"].dt.hour
-    df_all["Minute"] = df_all["Datetime"].dt.minute
     
-    df_all["TimeBlock"] = df_all["Hour"] * 60 + df_all["Minute"]
+    # ================= ORB FEATURES (FINAL FIX) =================
+
+    df_all = df_all.sort_values(["Stock","Datetime"])
     
     df_all["Date"] = df_all["Datetime"].dt.date
     
-    # 9:15 → 9:25 (first 3 candles)
-    orb_window = (9*60 + 15) + 10
+    # REMOVE OLD ORB columns if exist (VERY IMPORTANT)
+    for col in ["ORBHigh", "ORBLow"]:
+        if col in df_all.columns:
+            df_all = df_all.drop(columns=[col])
     
+    # safer time filter
     mask = (
-        (df_all["TimeBlock"] >= 9*60 + 15) &
-        (df_all["TimeBlock"] < orb_window)
+        (df_all["Datetime"].dt.time >= pd.to_datetime("09:15").time()) &
+        (df_all["Datetime"].dt.time <= pd.to_datetime("09:30").time())
     )
     
-    orb_high = (
-        df_all[mask]
-        .groupby(["Stock","Date"])["High"]
-        .max()
+    orb_data = df_all.loc[mask].copy()
+    
+    # compute ORB levels
+    orb_levels = (
+        orb_data.groupby(["Stock","Date"])
+        .agg(ORBHigh=("High","max"), ORBLow=("Low","min"))
         .reset_index()
     )
     
-    orb_low = (
-        df_all[mask]
-        .groupby(["Stock","Date"])["Low"]
-        .min()
-        .reset_index()
-    )
+    # merge safely
+    df_all = df_all.merge(orb_levels, on=["Stock","Date"], how="left")
     
-    orb_high.columns = ["Stock","Date","ORBHigh"]
-    orb_low.columns = ["Stock","Date","ORBLow"]
-
-    df_all = df_all.merge(
-        orb_high,
-        on=["Stock","Date"],
-        how="left"
-    )
-    
-    df_all = df_all.merge(
-        orb_low,
-        on=["Stock","Date"],
-        how="left"
-    )
-    
-    # ---------- ADD THIS FIX ----------
-    if "ORBHigh" not in df_all.columns:
-        df_all["ORBHigh"] = np.nan
-    
-    if "ORBLow" not in df_all.columns:
-        df_all["ORBLow"] = np.nan
-    # ----------------------------------
-    
+    # forward fill per day
     df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
     df_all["ORBLow"] = df_all.groupby(["Stock","Date"])["ORBLow"].ffill()
     
-    df_all["ORBStrength"] = (df_all["Close"] - df_all["ORBHigh"]) / df_all["ORBHigh"]
-    df_all["ORBWeakness"] = (df_all["ORBLow"] - df_all["Close"]) / df_all["ORBLow"]
+    # safe calculations
+    df_all["ORBStrength"] = np.where(
+        df_all["ORBHigh"] > 0,
+        (df_all["Close"] - df_all["ORBHigh"]) / df_all["ORBHigh"],
+        0
+    )
+    
+    df_all["ORBWeakness"] = np.where(
+        df_all["ORBLow"] > 0,
+        (df_all["ORBLow"] - df_all["Close"]) / df_all["ORBLow"],
+        0
+    )
     # Market breadth proxy
     df_all["UpStock"] = (df_all["Return"] > 0).astype(int)
     
