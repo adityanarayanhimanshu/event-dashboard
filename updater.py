@@ -815,7 +815,7 @@ if new_frames:
     )
     
     if "NiftyMomentum" not in df_all.columns:
-    df_all["NiftyMomentum"] = np.nan
+        df_all["NiftyMomentum"] = np.nan
     df_all["RelativeStrengthMarketIndia"] = (
     df_all["Return"] - df_all["NiftyMomentum"]
     )
