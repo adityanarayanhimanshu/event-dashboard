@@ -465,7 +465,7 @@ if new_frames:
                 data[["Datetime", name]].sort_values("Datetime"),
                 on="Datetime",
                 direction="backward",
-                tolerance=pd.Timedelta("10min")
+                tolerance=pd.Timedelta("30min")
             )
     
     
@@ -500,35 +500,35 @@ if new_frames:
     
             if not news.empty:
                 news = news.copy()
-
-                valid_mask = news["Headline"].notna()
             
+                valid_mask = news["Headline"].notna()
                 texts = news.loc[valid_mask, "Headline"].astype(str).str[:512].tolist()
             
                 if texts:
                     results = sentiment_pipeline(texts, batch_size=16)
-            
                     news.loc[valid_mask, "sent"] = [r["score"] for r in results]
             
                 news["sent"] = news["sent"].fillna(0)
+            
             else:
                 news["sent"] = 0
-    
-                news["Datetime"] = pd.to_datetime(news["Datetime"])
-    
-                news_sent = news.groupby(
-                    news["Datetime"].dt.floor("5min")
-                )["sent"].mean().reset_index()
-    
-                df_all = pd.merge_asof(
-                    df_all.sort_values("Datetime"),
-                    news_sent.sort_values("Datetime"),
-                    on="Datetime",
-                    direction="backward",
-                    tolerance=pd.Timedelta("10min")
-                )
-    
-                df_all["Sentiment"] = df_all["sent"].fillna(0)
+            
+            # ✅ MOVE THIS OUTSIDE if-else
+            news["Datetime"] = pd.to_datetime(news["Datetime"])
+            
+            news_sent = news.groupby(
+                news["Datetime"].dt.floor("5min")
+            )["sent"].mean().reset_index()
+            
+            df_all = pd.merge_asof(
+                df_all.sort_values("Datetime"),
+                news_sent.sort_values("Datetime"),
+                on="Datetime",
+                direction="backward",
+                tolerance=pd.Timedelta("30min")
+            )
+            
+            df_all["Sentiment"] = df_all["sent"].fillna(0)
     
     except Exception as e:
         print("Sentiment error:", e)
@@ -816,7 +816,7 @@ if new_frames:
     
     
     df_all["RelativeStrengthMarketIndia"] = (
-    df_all["Return"] - df_all.get("NiftyMomentum",0)
+    df_all["Return"] - df_all["NiftyMomentum"]
     )
     
     df_all["RelativeStrengthMarketUS"] = (
@@ -827,7 +827,15 @@ if new_frames:
     # CLEANUP
     # ======================================================
     
-    df_all = df_all.replace([np.inf,-np.inf],np.nan).fillna(0)
+    df_all = df_all.replace([np.inf,-np.inf],np.nan)
+
+    # Only forward fill market data
+    market_cols = [
+        "NiftyMomentum", "BankNiftyMomentum",
+        "SP500_return", "NASDAQ_return", "CRUDE_return", "USDINR_return"
+    ]
+    
+    df_all[market_cols] = df_all[market_cols].ffill()
     print("LIVE FEATURES:")
     print(df_all.columns.tolist())
     # Ensure model features exist
@@ -863,7 +871,7 @@ if new_frames:
     
         # 🔥 CRITICAL FIX
         X = X.apply(pd.to_numeric, errors='coerce')
-        X = X.fillna(0)
+        X = X.fillna(method="ffill").fillna(0)
     
         # 🔍 DEBUG (VERY IMPORTANT)
         print("Shape of X:", X.shape)
