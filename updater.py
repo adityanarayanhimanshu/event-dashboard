@@ -419,31 +419,45 @@ if new_frames:
         data["Datetime"] = data["Datetime"].dt.floor("5min")
     
         data[name] = data["Close"].pct_change()
-        # If Yahoo latest date < today → extend last value
-        latest_yahoo_time = data["Datetime"].max()
-        latest_df_time = df_all["Datetime"].max()
         
-        if latest_yahoo_time < latest_df_time:
-            print(f"{name}: Yahoo lag detected → extending last value")
+        # 🔥 Ensure column exists even if something breaks
+        if name not in data.columns:
+            print(f"{name}: column missing → creating fallback")
+            data[name] = 0
         
-            last_row = data.iloc[-1:].copy()
+        data[name] = data[name].replace([np.inf, -np.inf], 0).fillna(0)
+
+        # ================= SAFE STEP 3 =================
+        if name in data.columns and not data.empty:
         
-            # create artificial rows up to current time
-            future_times = pd.date_range(
-                start=latest_yahoo_time,
-                end=latest_df_time,
-                freq="5min"
-            )
+            latest_yahoo_time = data["Datetime"].max()
+            latest_df_time = df_all["Datetime"].max()
         
-            future_df = pd.DataFrame({"Datetime": future_times})
-            future_df[name] = last_row[name].values[0]
+            if latest_yahoo_time < latest_df_time:
+                print(f"{name}: Yahoo lag detected → extending last value")
         
-            data = pd.concat([data, future_df], ignore_index=True)
+                last_value = data[name].iloc[-1]
+        
+                future_times = pd.date_range(
+                    start=latest_yahoo_time,
+                    end=latest_df_time,
+                    freq="5min"
+                )
+        
+                future_df = pd.DataFrame({"Datetime": future_times})
+                future_df[name] = last_value
+        
+                data = pd.concat([data, future_df], ignore_index=True)
+        
+        else:
+            print(f"{name}: skipped extension (no data)")
+        # ==============================================
 
         # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
-        
+        if name not in data.columns:
+            data[name] = 0
         pd.merge_asof(
             df_all.sort_values("Datetime"),
             data[["Datetime", name]].sort_values("Datetime"),
@@ -493,12 +507,21 @@ if new_frames:
         data["Datetime"] = data["Datetime"].dt.floor("5min")
     
         data[name] = data["Close"].pct_change()
+        
+        # 🔥 Ensure column exists even if something breaks
+        if name not in data.columns:
+            print(f"{name}: column missing → creating fallback")
+            data[name] = 0
+        
+        data[name] = data[name].replace([np.inf, -np.inf], 0).fillna(0)
+        
         data[name] = data[name].clip(-0.01, 0.01)
 
         # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
-    
+        if name not in data.columns:
+            data[name] = 0
         pd.merge_asof(
             df_all.sort_values("Datetime"),
             data[["Datetime", name]].sort_values("Datetime"),
