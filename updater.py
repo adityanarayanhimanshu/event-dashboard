@@ -382,7 +382,7 @@ if new_frames:
         "SP500_return": "^GSPC",
         "NASDAQ_return": "^IXIC",
         "CRUDE_return": "CL=F",
-        "USDINR_return": "INR=X"
+        "USDINR_return": "USDINR=X"
     }
     
     for name, ticker in macro_tickers.items():
@@ -397,9 +397,11 @@ if new_frames:
         )
     
         if data.empty:
-            print(f"{name} missing from Yahoo → filling fallback")
-            df_all[name] = np.nan
-            continue
+            print(f"{name} missing from Yahoo → fallback")
+        
+            # create dummy dataframe aligned with df_all
+            data = df_all[["Datetime"]].copy()
+            data[name] = 0
     
         # Fix multi-index columns
         if isinstance(data.columns, pd.MultiIndex):
@@ -436,7 +438,8 @@ if new_frames:
             if latest_yahoo_time < latest_df_time:
                 print(f"{name}: Yahoo lag detected → extending last value")
         
-                last_value = data[name].iloc[-1]
+                last_value = data[name].dropna()
+                last_value = last_value.iloc[-1] if not last_value.empty else 0
         
                 future_times = pd.date_range(
                     start=latest_yahoo_time,
@@ -458,12 +461,12 @@ if new_frames:
             df_all = df_all.drop(columns=[name])
         if name not in data.columns:
             data[name] = 0
-        pd.merge_asof(
+        df_all = pd.merge_asof(
             df_all.sort_values("Datetime"),
             data[["Datetime", name]].sort_values("Datetime"),
             on="Datetime",
             direction="backward",
-            tolerance=pd.Timedelta("60min")   # 🔥 KEY FIX
+            tolerance=pd.Timedelta("60min")
         )
         df_all[name] = df_all[name].ffill().fillna(0)
     
@@ -486,9 +489,11 @@ if new_frames:
         )
     
         if data.empty:
-            print(f"{name} missing from Yahoo → filling fallback")
-            df_all[name] = np.nan
-            continue
+            print(f"{name} missing from Yahoo → fallback")
+        
+            # create dummy dataframe aligned with df_all
+            data = df_all[["Datetime"]].copy()
+            data[name] = 0
     
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
@@ -522,12 +527,12 @@ if new_frames:
             df_all = df_all.drop(columns=[name])
         if name not in data.columns:
             data[name] = 0
-        pd.merge_asof(
+        df_all = pd.merge_asof(
             df_all.sort_values("Datetime"),
             data[["Datetime", name]].sort_values("Datetime"),
             on="Datetime",
             direction="backward",
-            tolerance=pd.Timedelta("60min")   # 🔥 KEY FIX
+            tolerance=pd.Timedelta("60min")
         )
         df_all[name] = df_all[name].ffill().fillna(0)
     # ================= FORCE ALL MARKET COLUMNS =================
@@ -602,7 +607,7 @@ if new_frames:
                 news_sent.sort_values("Datetime"),
                 on="Datetime",
                 direction="backward",
-                tolerance=pd.Timedelta("30min")
+                tolerance=pd.Timedelta("60min")
             )
             
             df_all["Sentiment"] = df_all["sent"].fillna(0)
