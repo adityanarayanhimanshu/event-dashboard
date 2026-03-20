@@ -387,8 +387,8 @@ if new_frames:
     
     for name, ticker in macro_tickers.items():
 
-        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        start = ("2026-03-13")
+        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        #start = ("2026-03-13")
         data = pd.DataFrame()
 
         for attempt in range(3):
@@ -439,10 +439,14 @@ if new_frames:
                 print(f"{name}: Yahoo lag detected → extending last value")
         
                 last_value = data[name].dropna()
-                last_value = last_value.iloc[-1] if not last_value.empty else 0
+                if last_value.empty:
+                    print(f"❌ {name}: No valid data → skipping extension")
+                    continue
+                
+                last_value = last_value.iloc[-1]
         
                 future_times = pd.date_range(
-                    start=latest_yahoo_time,
+                    start=latest_yahoo_time + pd.Timedelta(minutes=5),
                     end=latest_df_time,
                     freq="5min"
                 )
@@ -491,8 +495,8 @@ if new_frames:
     
     for name, ticker in index_tickers.items():
 
-        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        start = ("2026-03-13")
+        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        #start = ("2026-03-13")
         data = pd.DataFrame()
 
         for attempt in range(3):
@@ -541,10 +545,14 @@ if new_frames:
                 print(f"{name}: Yahoo lag detected → extending last value")
         
                 last_value = data[name].dropna()
-                last_value = last_value.iloc[-1] if not last_value.empty else 0
+                if last_value.empty:
+                    print(f"❌ {name}: No valid data → skipping extension")
+                    continue
+                
+                last_value = last_value.iloc[-1]
         
                 future_times = pd.date_range(
-                    start=latest_yahoo_time,
+                    start=latest_yahoo_time + pd.Timedelta(minutes=5),
                     end=latest_df_time,
                     freq="5min"
                 )
