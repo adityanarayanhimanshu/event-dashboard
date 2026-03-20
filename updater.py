@@ -389,19 +389,22 @@ if new_frames:
 
         start = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
 
-        data = yf.download(
-            ticker,
-            start=start,
-            interval="5m",
-            progress=False
-        )
+        data = pd.DataFrame()
+
+        for attempt in range(3):
+            data = yf.download(
+                ticker,
+                start=start,
+                interval="5m",
+                progress=False
+            )
+            
+            if not data.empty:
+                break
     
         if data.empty:
-            print(f"{name} missing from Yahoo → fallback")
-        
-            # create dummy dataframe aligned with df_all
-            data = df_all[["Datetime"]].copy()
-            data[name] = 0
+            print(f"{name} missing from Yahoo → skipping (will ffill later)")
+            continue
     
         # Fix multi-index columns
         if isinstance(data.columns, pd.MultiIndex):
@@ -422,10 +425,7 @@ if new_frames:
     
         data[name] = data["Close"].pct_change()
         
-        # 🔥 Ensure column exists even if something breaks
-        if name not in data.columns:
-            print(f"{name}: column missing → creating fallback")
-            data[name] = 0
+       
         
         data[name] = data[name].replace([np.inf, -np.inf], 0).fillna(0)
 
@@ -459,11 +459,28 @@ if new_frames:
         # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
-        if name not in data.columns:
-            data[name] = 0
         
+        # ===== FIX: DAILY MERGE =====
+
+        # Convert yahoo to daily
+        data["Date"] = data["Datetime"].dt.date
+        data = data.sort_values("Datetime")
+        data = data.groupby("Date").last().reset_index()
+        
+        # Ensure df_all has Date
+        df_all["Date"] = pd.to_datetime(df_all["Datetime"]).dt.date
+        
+        # Merge
+        df_all = df_all.merge(
+            data[["Date", name]],
+            on="Date",
+            how="left"
         )
+        
+        # Fill values
         df_all[name] = df_all[name].ffill().fillna(0)
+        
+        
     
     # ================= INDEX FEATURES =================
     
@@ -476,19 +493,22 @@ if new_frames:
 
         start = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
 
-        data = yf.download(
-            ticker,
-            start=start,
-            interval="5m",
-            progress=False
-        )
-    
+        data = pd.DataFrame()
+
+        for attempt in range(3):
+            data = yf.download(
+                ticker,
+                start=start,
+                interval="5m",
+                progress=False
+            )
+            
+            if not data.empty:
+                break
+
         if data.empty:
-            print(f"{name} missing from Yahoo → fallback")
-        
-            # create dummy dataframe aligned with df_all
-            data = df_all[["Datetime"]].copy()
-            data[name] = 0
+            print(f"{name} missing from Yahoo → skipping (will ffill later)")
+            continue
     
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
@@ -508,22 +528,53 @@ if new_frames:
     
         data[name] = data["Close"].pct_change()
         
-        # 🔥 Ensure column exists even if something breaks
-        if name not in data.columns:
-            print(f"{name}: column missing → creating fallback")
-            data[name] = 0
+       
         
         data[name] = data[name].replace([np.inf, -np.inf], 0).fillna(0)
         
-        data[name] = data[name].clip(-0.01, 0.01)
+        if name in data.columns and not data.empty:
+
+            latest_yahoo_time = data["Datetime"].max()
+            latest_df_time = df_all["Datetime"].max()
+        
+            if latest_yahoo_time < latest_df_time:
+                print(f"{name}: Yahoo lag detected → extending last value")
+        
+                last_value = data[name].dropna()
+                last_value = last_value.iloc[-1] if not last_value.empty else 0
+        
+                future_times = pd.date_range(
+                    start=latest_yahoo_time,
+                    end=latest_df_time,
+                    freq="5min"
+                )
+        
+                future_df = pd.DataFrame({"Datetime": future_times})
+                future_df[name] = last_value
+        
+                data = pd.concat([data, future_df], ignore_index=True)
 
         # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
-        if name not in data.columns:
-            data[name] = 0
+        
+        
+        data["Date"] = data["Datetime"].dt.date
+        data = data.sort_values("Datetime")
+        data = data.groupby("Date").last().reset_index()
+        
+        df_all["Date"] = pd.to_datetime(df_all["Datetime"]).dt.date
+        
+        df_all = df_all.merge(
+            data[["Date", name]],
+            on="Date",
+            how="left"
+        )
         
         df_all[name] = df_all[name].ffill().fillna(0)
+
+    if "Date" in df_all.columns:
+        df_all.drop(columns=["Date"], inplace=True)
     # ================= FORCE ALL MARKET COLUMNS =================
 
     required_cols = [
@@ -593,7 +644,15 @@ if new_frames:
             
             
             
+            df_all = df_all.merge(
+                news_sent,
+                on="Datetime",
+                how="left"
+            )
+            
             df_all["Sentiment"] = df_all["sent"].fillna(0)
+            
+            df_all.drop(columns=["sent"], inplace=True)
     
     except Exception as e:
         print("Sentiment error:", e)
