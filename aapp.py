@@ -80,11 +80,15 @@ model = load_model()
 st.cache_data.clear()
 
 latest = pd.read_sql_query("""
-SELECT DISTINCT ON ("Stock")
-    "Datetime","Stock","Pred","Return","TargetHit"
-FROM events
-WHERE "Pred" IS NOT NULL
-ORDER BY "Stock","Datetime" DESC
+SELECT *
+FROM (
+    SELECT DISTINCT ON ("Stock")
+        "Datetime","Stock","Pred","Return","TargetHit"
+    FROM events
+    WHERE "Pred" IS NOT NULL
+    ORDER BY "Stock","Datetime" DESC
+) t
+ORDER BY "Pred" DESC
 """, engine)
 
 # ====================== TODAY TIME WINDOW ======================
