@@ -461,12 +461,7 @@ if new_frames:
             df_all = df_all.drop(columns=[name])
         if name not in data.columns:
             data[name] = 0
-        df_all = pd.merge_asof(
-            df_all.sort_values("Datetime"),
-            data[["Datetime", name]].sort_values("Datetime"),
-            on="Datetime",
-            direction="backward",
-            tolerance=pd.Timedelta("60min")
+        
         )
         df_all[name] = df_all[name].ffill().fillna(0)
     
@@ -527,13 +522,7 @@ if new_frames:
             df_all = df_all.drop(columns=[name])
         if name not in data.columns:
             data[name] = 0
-        df_all = pd.merge_asof(
-            df_all.sort_values("Datetime"),
-            data[["Datetime", name]].sort_values("Datetime"),
-            on="Datetime",
-            direction="backward",
-            tolerance=pd.Timedelta("60min")
-        )
+        
         df_all[name] = df_all[name].ffill().fillna(0)
     # ================= FORCE ALL MARKET COLUMNS =================
 
@@ -602,13 +591,7 @@ if new_frames:
                 news["Datetime"].dt.floor("5min")
             )["sent"].mean().reset_index()
             
-            df_all = pd.merge_asof(
-                df_all.sort_values("Datetime"),
-                news_sent.sort_values("Datetime"),
-                on="Datetime",
-                direction="backward",
-                tolerance=pd.Timedelta("60min")
-            )
+            
             
             df_all["Sentiment"] = df_all["sent"].fillna(0)
     
