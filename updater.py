@@ -387,9 +387,11 @@ if new_frames:
     
     for name, ticker in macro_tickers.items():
 
+        start = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
         data = yf.download(
             ticker,
-            period="5d",
+            start=start,
             interval="5m",
             progress=False
         )
@@ -410,22 +412,46 @@ if new_frames:
             .dt.tz_convert("Asia/Kolkata")
             .dt.tz_localize(None)
         )
+        
+        # 🔥 ADD THIS
+        data = data.sort_values("Datetime")
     
         data["Datetime"] = data["Datetime"].dt.floor("5min")
     
         data[name] = data["Close"].pct_change()
+        # If Yahoo latest date < today → extend last value
+        latest_yahoo_time = data["Datetime"].max()
+        latest_df_time = df_all["Datetime"].max()
+        
+        if latest_yahoo_time < latest_df_time:
+            print(f"{name}: Yahoo lag detected → extending last value")
+        
+            last_row = data.iloc[-1:].copy()
+        
+            # create artificial rows up to current time
+            future_times = pd.date_range(
+                start=latest_yahoo_time,
+                end=latest_df_time,
+                freq="5min"
+            )
+        
+            future_df = pd.DataFrame({"Datetime": future_times})
+            future_df[name] = last_row[name].values[0]
+        
+            data = pd.concat([data, future_df], ignore_index=True)
 
         # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
         
-        df_all = pd.merge_asof(
+        pd.merge_asof(
             df_all.sort_values("Datetime"),
             data[["Datetime", name]].sort_values("Datetime"),
             on="Datetime",
-            direction="backward"
+            direction="backward",
+            tolerance=pd.Timedelta("60min")   # 🔥 KEY FIX
         )
-    
+        df_all[name] = df_all[name].ffill().fillna(0)
     
     # ================= INDEX FEATURES =================
     
@@ -436,9 +462,11 @@ if new_frames:
     
     for name, ticker in index_tickers.items():
 
+        start = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
         data = yf.download(
             ticker,
-            period="5d",
+            start=start,
             interval="5m",
             progress=False
         )
@@ -458,6 +486,9 @@ if new_frames:
             .dt.tz_convert("Asia/Kolkata")
             .dt.tz_localize(None)
         )
+        
+        # 🔥 ADD THIS
+        data = data.sort_values("Datetime")
     
         data["Datetime"] = data["Datetime"].dt.floor("5min")
     
@@ -468,14 +499,14 @@ if new_frames:
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
     
-        df_all = pd.merge_asof(
+        pd.merge_asof(
             df_all.sort_values("Datetime"),
             data[["Datetime", name]].sort_values("Datetime"),
             on="Datetime",
             direction="backward",
-            tolerance=pd.Timedelta("30min")
+            tolerance=pd.Timedelta("60min")   # 🔥 KEY FIX
         )
-    
+        df_all[name] = df_all[name].ffill().fillna(0)
     # ================= FORCE ALL MARKET COLUMNS =================
 
     required_cols = [
