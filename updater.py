@@ -317,8 +317,8 @@ for stock, scrip in stocks.items():
         # Ensure datetime
         df["Datetime"] = pd.to_datetime(df["Datetime"])
 
-        if last_time is not None:
-            df = df[df["Datetime"] > last_time]
+        #if last_time is not None:
+            #df = df[df["Datetime"] > last_time]
         if df.empty:
             print(stock, "no new candles")
             continue
