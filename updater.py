@@ -387,7 +387,7 @@ if new_frames:
     
     for name, ticker in macro_tickers.items():
 
-        start = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
 
         data = pd.DataFrame()
 
@@ -491,7 +491,7 @@ if new_frames:
     
     for name, ticker in index_tickers.items():
 
-        start = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
 
         data = pd.DataFrame()
 
