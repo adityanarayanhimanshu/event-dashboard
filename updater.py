@@ -13,7 +13,7 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipe
 from config import cred, client_code, mpin, totp_key
 
 # ====================== LOGIN ======================
-print("Starting 5Paisa login...")
+print("ing 5Paisa login...")
 
 client = FivePaisaClient(cred=cred)
 
@@ -387,8 +387,8 @@ if new_frames:
     
     for name, ticker in macro_tickers.items():
 
-        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-
+        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        start = ("2026-03-13")
         data = pd.DataFrame()
 
         for attempt in range(3):
@@ -491,8 +491,8 @@ if new_frames:
     
     for name, ticker in index_tickers.items():
 
-        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-
+        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        start = ("2026-03-13")
         data = pd.DataFrame()
 
         for attempt in range(3):
