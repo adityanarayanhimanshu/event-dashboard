@@ -342,7 +342,7 @@ if new_frames:
         """
         SELECT *
         FROM events
-        WHERE "Datetime" > NOW() - INTERVAL '5 days'
+        WHERE "Datetime" > NOW() - INTERVAL '10 days'
         """,
         engine
     )
@@ -1055,7 +1055,7 @@ if new_frames:
     """
     SELECT "Stock","Datetime"
     FROM events
-    WHERE "Datetime" > NOW() - INTERVAL '1 day'
+    WHERE "Datetime" > NOW() - INTERVAL '10 day'
     """,
     engine
     )
