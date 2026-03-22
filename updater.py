@@ -1063,7 +1063,7 @@ if new_frames:
     """
     SELECT "Stock","Datetime"
     FROM events
-    WHERE "Datetime" > NOW() - INTERVAL '10 day'
+    WHERE "Datetime" > NOW() - INTERVAL '20 day'
     """,
     engine
     )
