@@ -843,15 +843,15 @@ if new_frames:
     # ================= LIQUIDITY SWEEP FEATURES =================
 
     lookback = 20
-    
+
     df_all["RecentHigh"] = (
         df_all.groupby("Stock")["High"]
-        .transform(lambda x: x.rolling(lookback).max())
+        .transform(lambda x: x.rolling(lookback, min_periods=lookback).max())
     )
     
     df_all["RecentLow"] = (
         df_all.groupby("Stock")["Low"]
-        .transform(lambda x: x.rolling(lookback).min())
+        .transform(lambda x: x.rolling(lookback, min_periods=lookback).min())
     )
     
     df_all["HighSweep"] = (
@@ -908,6 +908,10 @@ if new_frames:
         (df_all["MomentumEvent"] == 1) |
         (df_all["SweepEvent"] == 1)
     ).astype(int)
+    print("EventTrigger rate:", df_all["EventTrigger"].mean())
+    print("VolumeEvent rate:", df_all["VolumeEvent"].mean())
+    print("MomentumEvent rate:", df_all["MomentumEvent"].mean())
+    print("SweepEvent rate:", df_all["SweepEvent"].mean())
     # ================= SECTOR FEATURES =================
 
     sector_map = {
