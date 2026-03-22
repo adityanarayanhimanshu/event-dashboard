@@ -892,10 +892,10 @@ if new_frames:
         df_all["Volume"] > df_all["VolAvg20"] * 1.5
     ).astype(int)
     
+    momentum10 = df_all.groupby("Stock")["Close"].pct_change(10)
+
     df_all["MomentumEvent"] = (
-        df_all.groupby("Stock")["Close"]
-        .pct_change(10)
-        .abs() > 0.003
+        momentum10.abs() > 0.003
     ).astype(int)
     
     df_all["SweepEvent"] = (
