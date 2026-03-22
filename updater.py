@@ -342,7 +342,7 @@ if new_frames:
         """
         SELECT *
         FROM events
-        WHERE "Datetime" > NOW() - INTERVAL '10 days'
+        WHERE "Datetime" > NOW() - INTERVAL '30 days'
         """,
         engine
     )
@@ -792,23 +792,21 @@ if new_frames:
     # ================= ORB FEATURES (FINAL FIX) =================
 
     df_all = df_all.sort_values(["Stock","Datetime"])
-    
-    
-    
-    # safe calculations
+    df_all["TradeDate"] = df_all["Datetime"].dt.date
+
     df_all["MarketOpen"] = (
         df_all["Datetime"].dt.time <= pd.to_datetime("09:45").time()
     )
     
     open_high = (
         df_all[df_all["MarketOpen"]]
-        .groupby(["Stock", df_all["Datetime"].dt.date])["High"]
+        .groupby(["Stock","TradeDate"])["High"]
         .transform("max")
     )
     
     open_low = (
         df_all[df_all["MarketOpen"]]
-        .groupby(["Stock", df_all["Datetime"].dt.date])["Low"]
+        .groupby(["Stock","TradeDate"])["Low"]
         .transform("min")
     )
     
@@ -823,8 +821,8 @@ if new_frames:
     )
     
     df_all["MarketBreadthPressure"] = (
-        df_all.groupby("Datetime")["Close"]
-        .transform(lambda x: (x.pct_change() > 0).mean())
+        df_all.groupby("Datetime")["UpStock"]
+        .transform("mean")
     )
     
     # Lag momentum
