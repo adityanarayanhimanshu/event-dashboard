@@ -271,10 +271,9 @@ for stock, scrip in stocks.items():
             params=(stock,)
         ).iloc[0,0]
         
-        if last_time is None:
-            start_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
-        else:
-            start_date = last_time.strftime("%Y-%m-%d")
+        
+        start_date = (datetime.now() - timedelta(days=15)).strftime("%Y-%m-%d")
+        
         print(stock, "fetching from", start_date)
         data = client.historical_data(
             Exch="N",
