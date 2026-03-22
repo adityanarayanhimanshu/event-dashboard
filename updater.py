@@ -387,8 +387,8 @@ if new_frames:
     
     for name, ticker in macro_tickers.items():
 
-        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        start = ("2026-03-10")
+        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        #start = ("2026-03-10")
         data = pd.DataFrame()
 
         for attempt in range(3):
@@ -495,8 +495,8 @@ if new_frames:
     
     for name, ticker in index_tickers.items():
 
-        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        start = ("2026-03-10")
+        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        #start = ("2026-03-10")
         data = pd.DataFrame()
 
         for attempt in range(3):
@@ -793,47 +793,27 @@ if new_frames:
 
     df_all = df_all.sort_values(["Stock","Datetime"])
     
-    df_all["Date"] = df_all["Datetime"].dt.date
     
-    # REMOVE OLD ORB columns if exist (VERY IMPORTANT)
-    for col in ["ORBHigh", "ORBLow"]:
-        if col in df_all.columns:
-            df_all = df_all.drop(columns=[col])
-    
-    # safer time filter
-    mask = (
-        (df_all["Datetime"].dt.time >= pd.to_datetime("09:15").time()) &
-        (df_all["Datetime"].dt.time <= pd.to_datetime("09:30").time())
-    )
-    
-    orb_data = df_all.loc[mask].copy()
-    
-    # compute ORB levels
-    orb_levels = (
-        orb_data.groupby(["Stock","Date"])
-        .agg(ORBHigh=("High","max"), ORBLow=("Low","min"))
-        .reset_index()
-    )
-    
-    # merge safely
-    df_all = df_all.merge(orb_levels, on=["Stock","Date"], how="left")
-    
-    # forward fill per day
-    df_all["ORBHigh"] = df_all.groupby(["Stock","Date"])["ORBHigh"].ffill()
-    df_all["ORBLow"] = df_all.groupby(["Stock","Date"])["ORBLow"].ffill()
     
     # safe calculations
-    df_all["ORBStrength"] = np.where(
-        df_all["ORBHigh"] > 0,
-        (df_all["Close"] - df_all["ORBHigh"]) / df_all["ORBHigh"],
-        0
+    df_all["MarketOpen"] = (
+        df_all["Datetime"].dt.time <= pd.to_datetime("09:45").time()
     )
     
-    df_all["ORBWeakness"] = np.where(
-        df_all["ORBLow"] > 0,
-        (df_all["ORBLow"] - df_all["Close"]) / df_all["ORBLow"],
-        0
+    open_high = (
+        df_all[df_all["MarketOpen"]]
+        .groupby(["Stock", df_all["Datetime"].dt.date])["High"]
+        .transform("max")
     )
+    
+    open_low = (
+        df_all[df_all["MarketOpen"]]
+        .groupby(["Stock", df_all["Datetime"].dt.date])["Low"]
+        .transform("min")
+    )
+    
+    df_all["ORBStrength"] = (df_all["Close"] - open_high) / open_high
+    df_all["ORBWeakness"] = (df_all["Close"] - open_low) / open_low
     # Market breadth proxy
     df_all["UpStock"] = (df_all["Return"] > 0).astype(int)
     
@@ -853,15 +833,11 @@ if new_frames:
         .pct_change(3)
         .shift(2)
     )
-    df_all["Return15"] = (
-        0.5 * df_all.groupby("Stock")["Close"].pct_change(5) +
-        0.3 * df_all.groupby("Stock")["Close"].pct_change(15) +
-        0.2 * df_all.groupby("Stock")["Close"].pct_change(30)
-    )
-    df_all["Return15"] = df_all["Return15"].clip(-0.1, 0.1)
+
     # Relative rank
     df_all["RelativeRank"] = (
-        df_all.groupby("Datetime")["Return15"]
+        df_all.groupby("Datetime")["Close"]
+        .pct_change(15)
         .rank(pct=True)
     )
     
@@ -904,6 +880,36 @@ if new_frames:
         df_all.groupby("Stock")["LowSweep"]
         .transform(lambda x: x.rolling(10).sum())
     )
+
+    # ================= EVENT TRIGGER (MATCH TRAINING) =================
+
+    df_all["VolAvg20"] = (
+        df_all.groupby("Stock")["Volume"]
+        .rolling(20)
+        .mean()
+        .reset_index(level=0, drop=True)
+    )
+    
+    df_all["VolumeEvent"] = (
+        df_all["Volume"] > df_all["VolAvg20"] * 1.5
+    ).astype(int)
+    
+    df_all["MomentumEvent"] = (
+        df_all.groupby("Stock")["Close"]
+        .pct_change(10)
+        .abs() > 0.003
+    ).astype(int)
+    
+    df_all["SweepEvent"] = (
+        (df_all["HighSweep"] == 1) |
+        (df_all["LowSweep"] == 1)
+    ).astype(int)
+    
+    df_all["EventTrigger"] = (
+        (df_all["VolumeEvent"] == 1) |
+        (df_all["MomentumEvent"] == 1) |
+        (df_all["SweepEvent"] == 1)
+    ).astype(int)
     # ================= SECTOR FEATURES =================
 
     sector_map = {
@@ -1000,7 +1006,8 @@ if new_frames:
         print("Columns available:", len(df_all.columns))
 
         # ================= FIX STARTS HERE =================
-
+        # keep only event rows (same as training)
+        df_all = df_all[df_all["EventTrigger"] == 1]
         X = df_all[model.feature_names_in_].copy()
     
         # 🔥 CRITICAL FIX
@@ -1014,7 +1021,7 @@ if new_frames:
         print("Sample:\n", X.head())
     
         # ================= FIX ENDS HERE =================
-
+        
         df_all["Pred"] = model.predict_proba(X)[:,1]
         # Keep only newly added rows properly
         new_times = df_new[["Stock", "Datetime"]].drop_duplicates()
