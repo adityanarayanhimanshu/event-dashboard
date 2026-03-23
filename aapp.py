@@ -108,7 +108,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs(["📡 Live Signals", "🏆 Strategies", 
 
 with tab1:
     st.subheader("All Stocks - Latest Probability (Descending by Pred)")
-    full_signals = latest.sort_values(["Datetime","Pred"], ascending=False)
+    full_signals = latest.sort_values("Pred", ascending=False)
     st.dataframe(full_signals[['Stock', 'Pred', 'Return', 'TargetHit']], width='stretch')
 
     col_long, col_short = st.columns(2)
@@ -119,7 +119,7 @@ with tab1:
 
     with col_short:
         st.subheader("Top 5 Shorts (Lowest Pred)")
-        shorts = full_signals.tail(5)
+        shorts = full_signals.sort_values("Pred", ascending=True).head(5)
         st.dataframe(shorts[['Stock', 'Pred']], width='stretch')
 
 with tab2:
