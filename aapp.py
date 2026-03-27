@@ -41,7 +41,7 @@ st.title("🚀 INTRADAY QUANT DASHBOARD")
 st.caption(f"Auto-refreshes every 5 min • Auto exit + PnL • Using IST ({ist_today})")
 st.markdown(
     """
-    <meta http-equiv="refresh" content="3600">
+    <meta http-equiv="refresh" content="300">
     """,
     unsafe_allow_html=True
 )
