@@ -259,74 +259,48 @@ stocks = {
 "POLYCAB":9590
 }
 
+
+today_str = datetime.now().strftime("%Y-%m-%d")
+start_time = f"{today_str} 09:15:00"
+
+print(f"Fetching 5-minute data from: {start_time}")
+
 new_frames = []
 
-# ====================== FETCH DATA ======================
 for stock, scrip in stocks.items():
+    try:
+        print(f"Fetching {stock}...")
 
-    try: 
-        last_time = pd.read_sql(
-            'SELECT MAX("Datetime") FROM events WHERE "Stock" = %s',
-            engine,
-            params=(stock,)
-        ).iloc[0,0]
-        
-        
-        start_date = (datetime.now() - timedelta(days=15)).strftime("%Y-%m-%d")
-        
-        print(stock, "fetching from", start_date)
         data = client.historical_data(
             Exch="N",
             ExchangeSegment="C",
             ScripCode=scrip,
-            time="5m",
-            From=start_date,
-            To=(date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+            time="5m",                    # ← Force 5-minute interval
+            From=start_time,
+            To=(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
         )
-        print(stock, "RAW API RESPONSE TYPE:", type(data))
-        print(stock, "RAW API RESPONSE:", str(data)[:200])
 
-        if data is None:
-            print(stock, "API returned NONE")
+        if data is None or len(data) == 0:
+            print(f"{stock}: Empty response")
             continue
 
-
-        if isinstance(data, str):
-
-            if data.strip() == "":
-                print(stock, "API returned BLANK STRING")
-                continue
-
-        if isinstance(data, dict):
-
-            if "data" not in data:
-                print(stock, "API response missing 'data' key:", data)
-                continue
-        df = pd.DataFrame(data)   
-        
+        df = pd.DataFrame(data)
         if df.empty:
-            print(stock, "API returned empty response")
+            print(f"{stock}: Empty DataFrame")
             continue
 
-        print(stock, "rows received:", len(df))
-        
-        # Ensure stock column
         df["Stock"] = stock
-        
-        # Ensure datetime
         df["Datetime"] = pd.to_datetime(df["Datetime"])
 
-        #if last_time is not None:
-            #df = df[df["Datetime"] > last_time]
-        if df.empty:
-            print(stock, "no new candles")
-            continue
+        # Important: Filter to 5-min candles starting from 9:15
+        df = df[df["Datetime"] >= start_time]
 
-        print(stock, "new rows:", len(df))    
+        print(f"{stock}: {len(df)} new 5-min candles")
+
         new_frames.append(df)
 
     except Exception as e:
-        print("Error:",stock,e)
+        print(f"Error fetching {stock}: {e}")
 
 # ====================== SAVE TO DATABASE ======================
 # ==================== SAVE TO DATABASE ====================
