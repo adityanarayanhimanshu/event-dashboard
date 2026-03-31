@@ -260,7 +260,7 @@ stocks = {
 }
 
 
-today_str = datetime.now().strftime("%Y-%m-%d")
+#today_str = datetime.now().strftime("%Y-%m-%d")
 #start_time = f"{today_str} 09:15:00"
 start_time = "2026-03-16 09:15:00"
 print(f"Fetching 5-minute data from: {start_time}")
