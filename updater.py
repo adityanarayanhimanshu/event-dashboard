@@ -260,9 +260,9 @@ stocks = {
 }
 
 
-today_str = datetime.now().strftime("%Y-%m-%d")
-start_time = f"{today_str} 09:15:00"
-#start_time = "2026-03-28 09:15:00"
+#today_str = datetime.now().strftime("%Y-%m-%d")
+#start_time = f"{today_str} 09:15:00"
+start_time = "2026-03-10 09:15:00"
 print(f"Fetching 5-minute data from: {start_time}")
 
 new_frames = []
@@ -503,7 +503,7 @@ if new_frames:
     
         data["Datetime"] = data["Datetime"].dt.floor("5min")
     
-        data[name] = data["Close"].pct_change()
+        data[name] = data["Close"].pct_change(10)
         
        
         
