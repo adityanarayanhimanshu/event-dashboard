@@ -542,18 +542,17 @@ if new_frames:
         
         
         
-        df_all["Date"] = pd.to_datetime(df_all["Datetime"]).dt.date
+        
         
         df_all = df_all.merge(
-            data[["Date", name]],
-            on="Date",
+            data[["Datetime", name]],
+            on="Datetime",
             how="left"
         )
         
         df_all[name] = df_all[name].ffill().fillna(0)
 
-    if "Date" in df_all.columns:
-        df_all.drop(columns=["Date"], inplace=True)
+    
     # ================= FORCE ALL MARKET COLUMNS =================
 
     required_cols = [
