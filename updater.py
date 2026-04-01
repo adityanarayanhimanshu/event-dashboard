@@ -501,7 +501,7 @@ if new_frames:
         # 🔥 ADD THIS
         data = data.sort_values("Datetime")
     
-        data["Datetime"] = data["Datetime"].dt.floor("5min")
+        
     
         data[name] = data["Close"].pct_change(10)
         
@@ -540,9 +540,7 @@ if new_frames:
             df_all = df_all.drop(columns=[name])
         
         
-        data["Date"] = data["Datetime"].dt.date
-        data = data.sort_values("Datetime")
-        data = data.groupby("Date").last().reset_index()
+        
         
         df_all["Date"] = pd.to_datetime(df_all["Datetime"]).dt.date
         
