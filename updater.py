@@ -567,23 +567,29 @@ if new_frames:
         
                 data = pd.concat([data, future_df], ignore_index=True)
 
-        # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
+        
+        # DROP OLD COLUMN
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
-        
-        
-        
-        
-        
-        
-        df_all = df_all.merge(
+
+        # Floor Yahoo timestamps to 5-min (already done above)
+        data["Datetime"] = data["Datetime"].dt.floor("5min")
+
+        # Floor df_all timestamps to 5-min before merge
+        df_all["Datetime_floor"] = pd.to_datetime(df_all["Datetime"]).dt.floor("5min")
+
+        # Merge on floored datetime
+        merged = df_all.merge(
             data[["Datetime", name]],
-            on="Datetime",
+            left_on="Datetime_floor",
+            right_on="Datetime",
             how="left"
         )
-        
-        df_all[name] = df_all[name].ffill().fillna(0)
 
+        # Clean up
+        df_all[name] = merged[name].values
+        df_all[name] = df_all[name].ffill().fillna(0)
+        df_all.drop(columns=["Datetime_floor"], inplace=True, errors="ignore")
     
     # ================= FORCE ALL MARKET COLUMNS =================
 
