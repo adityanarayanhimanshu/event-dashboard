@@ -360,8 +360,8 @@ if new_frames:
     
     for name, ticker in macro_tickers.items():
 
-        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        #start = ("2026-03-10")
+        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        start = ("2026-03-21")
         data = pd.DataFrame()
 
         for attempt in range(3):
