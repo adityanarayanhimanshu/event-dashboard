@@ -384,7 +384,23 @@ if new_frames:
             data.columns = data.columns.get_level_values(0)
     
         data = data.reset_index()
+        if "Datetime" not in data.columns:
+            dt_col = None
+            for col in data.columns:
+                try:
+                    sample = pd.to_datetime(data[col].iloc[0], utc=True)
+                    # Must have both date AND time component — price values won't have time
+                    if sample.year >= 2020 and (sample.hour != 0 or sample.minute != 0):
+                        dt_col = col
+                        break
+                except:
+                    continue
     
+            if dt_col is None:
+                print(f"{name}: Cannot find datetime column — skipping")
+                continue
+    
+            data = data.rename(columns={dt_col: "Datetime"})    
         data["Datetime"] = (
             pd.to_datetime(data["Datetime"], utc=True)
             .dt.tz_convert("Asia/Kolkata")
@@ -491,7 +507,23 @@ if new_frames:
             data.columns = data.columns.get_level_values(0)
     
         data = data.reset_index()
+        if "Datetime" not in data.columns:
+            dt_col = None
+            for col in data.columns:
+                try:
+                    sample = pd.to_datetime(data[col].iloc[0], utc=True)
+                    # Must have both date AND time component — price values won't have time
+                    if sample.year >= 2020 and (sample.hour != 0 or sample.minute != 0):
+                        dt_col = col
+                        break
+                except:
+                    continue
     
+            if dt_col is None:
+                print(f"{name}: Cannot find datetime column — skipping")
+                continue
+    
+            data = data.rename(columns={dt_col: "Datetime"})
         data["Datetime"] = (
             pd.to_datetime(data["Datetime"], utc=True)
             .dt.tz_convert("Asia/Kolkata")
