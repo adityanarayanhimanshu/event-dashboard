@@ -261,8 +261,8 @@ stocks = {
 
 
 today_str = datetime.now().strftime("%Y-%m-%d")
-start_time = f"{today_str} 09:15:00"
-#start_time = "2026-04-01 09:15:00"
+#start_time = f"{today_str} 09:15:00"
+start_time = "2026-05-20 09:15:00"
 print(f"Fetching 5-minute data from: {start_time}")
 
 new_frames = []
@@ -360,8 +360,8 @@ if new_frames:
     
     for name, ticker in macro_tickers.items():
 
-        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        #start = ("2026-04-01")
+        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        start = ("2026-05-20")
         data = pd.DataFrame()
 
         for attempt in range(3):
@@ -484,8 +484,8 @@ if new_frames:
     
     for name, ticker in index_tickers.items():
 
-        start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        #start = ("2026-04-01")
+        #start = df_all["Datetime"].min().strftime("%Y-%m-%d")
+        start = ("2026-05-20")
         data = pd.DataFrame()
 
         for attempt in range(3):
@@ -900,8 +900,9 @@ if new_frames:
         df_all["Volume"] > df_all["VolAvg20"] * 1.5
     ).astype(int)
     
-    momentum10 = df_all.groupby("Stock")["Close"].pct_change(10)
-
+    #momentum10 = df_all.groupby("Stock")["Close"].pct_change(10)
+    # Change this one line only
+    momentum10 = df_all.groupby(["Stock", df_all["Datetime"].dt.date])["Close"].pct_change(10)
     df_all["MomentumEvent"] = (
         momentum10.abs() > 0.003
     ).astype(int)
