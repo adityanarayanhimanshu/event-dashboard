@@ -511,6 +511,10 @@ if new_frames:
         data = data.sort_values("Datetime").dropna(subset=["Datetime", name])
         df_all = df_all.sort_values("Datetime").reset_index(drop=True)
 
+        # FORCE MATCHING RESOLUTIONS BEFORE MERGE
+        df_all["Datetime"] = df_all["Datetime"].astype("datetime64[s]")
+        data["Datetime"] = data["Datetime"].astype("datetime64[s]")
+
         df_all = pd.merge_asof(
             df_all,
             data[["Datetime", name]],
@@ -621,10 +625,16 @@ if new_frames:
         # Exact-equality merge on floored Datetime leaves a NaN whenever
         # Yahoo skips a 5-min index bar. merge_asof instead grabs the
         # nearest prior known Nifty/BankNifty value, so no gaps.
+        
         data["Datetime"] = data["Datetime"].dt.floor("5min")
         data = data.sort_values("Datetime").dropna(subset=["Datetime", name])
 
         df_all = df_all.sort_values("Datetime").reset_index(drop=True)
+
+        # FORCE MATCHING RESOLUTIONS BEFORE MERGE
+        df_all["Datetime"] = df_all["Datetime"].astype("datetime64[s]")
+        data["Datetime"] = data["Datetime"].astype("datetime64[s]")
+
 
         df_all = pd.merge_asof(
             df_all,
