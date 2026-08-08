@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 import pandas as pd
 from sqlalchemy import create_engine
 from datetime import datetime, timedelta, date
@@ -281,30 +282,63 @@ print(f"Fetching 5-minute data from: {start_time}")
 
 new_frames = []
 
+# ====================== CHUNKED FETCH HELPER ======================
+# Splits [start, end] into fixed-size windows so a single historical_data()
+# call never has to cover a huge gap (e.g. after deleting rows in Neon).
+# 5paisa's 5-minute interval endpoint appears to cap out under 30 days per
+# call, so 25 is used as a safe buffer below that ceiling. If you confirm
+# the exact limit, you can push this closer to it — fewer, larger chunks
+# means fewer API calls across ~80 stocks.
+def chunk_date_ranges(start_str, end_str, chunk_days=25):
+    start_dt = pd.to_datetime(start_str)
+    end_dt = pd.to_datetime(end_str)
+    chunks = []
+    cur = start_dt
+    while cur < end_dt:
+        nxt = min(cur + timedelta(days=chunk_days), end_dt)
+        chunks.append((cur.strftime("%Y-%m-%d %H:%M:%S"), nxt.strftime("%Y-%m-%d %H:%M:%S")))
+        cur = nxt
+    return chunks
+
 for stock, scrip in stocks.items():
     try:
         print(f"Fetching {stock}...")
 
-        data = client.historical_data(
-            Exch="N",
-            ExchangeSegment="C",
-            ScripCode=scrip,
-            time="5m",                    # ← Force 5-minute interval
-            From=start_time,
-            To=(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-        )
+        end_time_str = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        date_chunks = chunk_date_ranges(start_time, end_time_str, chunk_days=25)
 
-        if data is None or len(data) == 0:
+        stock_frames = []
+        for chunk_from, chunk_to in date_chunks:
+            chunk_data = client.historical_data(
+                Exch="N",
+                ExchangeSegment="C",
+                ScripCode=scrip,
+                time="5m",                    # ← Force 5-minute interval
+                From=chunk_from,
+                To=chunk_to
+            )
+
+            if chunk_data is None or len(chunk_data) == 0:
+                continue
+
+            chunk_df = pd.DataFrame(chunk_data)
+            if not chunk_df.empty:
+                stock_frames.append(chunk_df)
+
+            time.sleep(0.2)  # light pacing to avoid hammering the API across chunks
+
+        if not stock_frames:
             print(f"{stock}: Empty response")
             continue
 
-        df = pd.DataFrame(data)
+        df = pd.concat(stock_frames, ignore_index=True)
         if df.empty:
             print(f"{stock}: Empty DataFrame")
             continue
 
         df["Stock"] = stock
         df["Datetime"] = pd.to_datetime(df["Datetime"])
+        df = df.drop_duplicates(subset=["Datetime"])
 
         # Important: Filter to 5-min candles starting from 9:15
         df = df[df["Datetime"] >= start_time]
@@ -1191,6 +1225,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+
     
 
 
