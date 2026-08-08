@@ -395,6 +395,7 @@ if new_frames:
             df_all[col] = np.nan
     # ================= MACRO + INDEX DATA =================
 
+
     import yfinance as yf
     
     # ================= MACRO FEATURES =================
@@ -409,14 +410,13 @@ if new_frames:
     for name, ticker in macro_tickers.items():
 
         start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        #start = ("2026-05-20")
         data = pd.DataFrame()
 
         for attempt in range(3):
             data = yf.download(
                 ticker,
                 start=start,
-                interval="5m",
+                interval="1d",
                 progress=False
             )
             
@@ -427,91 +427,27 @@ if new_frames:
             print(f"{name} missing from Yahoo → skipping (will ffill later)")
             continue
     
-        # Fix multi-index columns
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
     
         data = data.reset_index()
-        if "Datetime" not in data.columns:
-            dt_col = None
-            for col in data.columns:
-                try:
-                    sample = pd.to_datetime(data[col].iloc[0], utc=True)
-                    # Must have both date AND time component — price values won't have time
-                    if sample.year >= 2020 and (sample.hour != 0 or sample.minute != 0):
-                        dt_col = col
-                        break
-                except:
-                    continue
-    
-            if dt_col is None:
-                print(f"{name}: Cannot find datetime column — skipping")
-                continue
-    
-            data = data.rename(columns={dt_col: "Datetime"})    
-        data["Datetime"] = (
-            pd.to_datetime(data["Datetime"], utc=True)
-            .dt.tz_convert("Asia/Kolkata")
-            .dt.tz_localize(None)
-        )
         
-        # 🔥 ADD THIS
-        data = data.sort_values("Datetime")
-    
-        data["Datetime"] = data["Datetime"].dt.floor("5min")
-    
+        date_col = "Date" if "Date" in data.columns else "Datetime"
+        data[date_col] = pd.to_datetime(data[date_col]).dt.tz_localize(None)
+        
         data[name] = data["Close"].pct_change()
-        
-       
-        
         data[name] = data[name].replace([np.inf, -np.inf], 0).fillna(0)
 
-        # ================= SAFE STEP 3 =================
-        if name in data.columns and not data.empty:
-        
-            latest_yahoo_time = data["Datetime"].max()
-            latest_df_time = df_all["Datetime"].max()
-        
-            if latest_yahoo_time < latest_df_time:
-                print(f"{name}: Yahoo lag detected → extending last value")
-        
-                last_value = data[name].dropna()
-                if last_value.empty:
-                    print(f"❌ {name}: No valid data → skipping extension")
-                    continue
-                
-                last_value = last_value.iloc[-1]
-        
-                future_times = pd.date_range(
-                    start=latest_yahoo_time + pd.Timedelta(minutes=5),
-                    end=latest_df_time,
-                    freq="5min"
-                )
-        
-                future_df = pd.DataFrame({"Datetime": future_times})
-                future_df[name] = last_value
-        
-                data = pd.concat([data, future_df], ignore_index=True)
-        
-        else:
-            print(f"{name}: skipped extension (no data)")
-        # ==============================================
+        # Map to late night close to safely align with subsequent day sessions via merge_asof
+        data["Datetime"] = pd.to_datetime(data[date_col]).dt.normalize() + pd.Timedelta(hours=23, minutes=59)
+        data = data.sort_values("Datetime").dropna(subset=["Datetime", name])
 
-        # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
 
-        # ===== FIX: TIMESTAMP-ASOF MERGE (no calendar-date mismatch) =====
-        # Matching by calendar Date breaks because Friday's US close lands on
-        # a Saturday IST timestamp — it never has a same-Date match for
-        # Friday or Monday in India, so it silently ffills stale data.
-        # merge_asof instead grabs the latest known US value at or before
-        # each Indian candle's real timestamp, regardless of what calendar
-        # day it fell on.
-        data = data.sort_values("Datetime").dropna(subset=["Datetime", name])
         df_all = df_all.sort_values("Datetime").reset_index(drop=True)
 
-        # FORCE MATCHING RESOLUTIONS BEFORE MERGE
+        # Force uniform timestamp dtype to prevent merge errors
         df_all["Datetime"] = df_all["Datetime"].astype("datetime64[s]")
         data["Datetime"] = data["Datetime"].astype("datetime64[s]")
 
@@ -523,7 +459,7 @@ if new_frames:
         )
 
         df_all[name] = pd.to_numeric(df_all[name], errors="coerce").ffill().fillna(0)
-
+        
     # ================= INDEX FEATURES =================
     
     index_tickers = {
@@ -534,7 +470,6 @@ if new_frames:
     for name, ticker in index_tickers.items():
 
         start = df_all["Datetime"].min().strftime("%Y-%m-%d")
-        #start = ("2026-05-20")
         data = pd.DataFrame()
 
         for attempt in range(3):
@@ -561,7 +496,6 @@ if new_frames:
             for col in data.columns:
                 try:
                     sample = pd.to_datetime(data[col].iloc[0], utc=True)
-                    # Must have both date AND time component — price values won't have time
                     if sample.year >= 2020 and (sample.hour != 0 or sample.minute != 0):
                         dt_col = col
                         break
@@ -573,68 +507,27 @@ if new_frames:
                 continue
     
             data = data.rename(columns={dt_col: "Datetime"})
+            
         data["Datetime"] = (
             pd.to_datetime(data["Datetime"], utc=True)
             .dt.tz_convert("Asia/Kolkata")
             .dt.tz_localize(None)
         )
         
-        # 🔥 ADD THIS
         data = data.sort_values("Datetime")
-    
-        
-    
         data[name] = data["Close"].pct_change(10)
-        
-       
-        
         data[name] = data[name].replace([np.inf, -np.inf], 0).fillna(0)
         
-        if name in data.columns and not data.empty:
-
-            latest_yahoo_time = data["Datetime"].max()
-            latest_df_time = df_all["Datetime"].max()
-        
-            if latest_yahoo_time < latest_df_time:
-                print(f"{name}: Yahoo lag detected → extending last value")
-        
-                last_value = data[name].dropna()
-                if last_value.empty:
-                    print(f"❌ {name}: No valid data → skipping extension")
-                    continue
-                
-                last_value = last_value.iloc[-1]
-        
-                future_times = pd.date_range(
-                    start=latest_yahoo_time + pd.Timedelta(minutes=5),
-                    end=latest_df_time,
-                    freq="5min"
-                )
-        
-                future_df = pd.DataFrame({"Datetime": future_times})
-                future_df[name] = last_value
-        
-                data = pd.concat([data, future_df], ignore_index=True)
-
-        
-        # DROP OLD COLUMN
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
 
-        # ===== FIX: TIMESTAMP-ASOF MERGE =====
-        # Exact-equality merge on floored Datetime leaves a NaN whenever
-        # Yahoo skips a 5-min index bar. merge_asof instead grabs the
-        # nearest prior known Nifty/BankNifty value, so no gaps.
-        
         data["Datetime"] = data["Datetime"].dt.floor("5min")
         data = data.sort_values("Datetime").dropna(subset=["Datetime", name])
-
         df_all = df_all.sort_values("Datetime").reset_index(drop=True)
 
-        # FORCE MATCHING RESOLUTIONS BEFORE MERGE
+        # Force uniform timestamp dtype to prevent merge errors
         df_all["Datetime"] = df_all["Datetime"].astype("datetime64[s]")
         data["Datetime"] = data["Datetime"].astype("datetime64[s]")
-
 
         df_all = pd.merge_asof(
             df_all,
@@ -660,12 +553,14 @@ if new_frames:
         if col not in df_all.columns:
             print(f"FORCE ADD: {col}")
             df_all[col] = 0
+            
     # ================= HANDLE YAHOO DELAYS =================
     
     existing_cols = [c for c in macro_cols + index_cols if c in df_all.columns]
     df_all[existing_cols] = df_all[existing_cols].ffill()
     df_all[existing_cols] = df_all[existing_cols].fillna(0)
     df_all[existing_cols] = df_all[existing_cols].astype(float)
+                 
     # ================= LIVE NEWS SENTIMENT =================
 
     try:
