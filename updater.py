@@ -260,9 +260,23 @@ stocks = {
 }
 
 
-today_str = datetime.now().strftime("%Y-%m-%d")
-start_time = f"{today_str} 09:15:00"
-#start_time = "2026-05-20 09:15:00"
+# ====================== RESUME FROM LAST SAVED CANDLE ======================
+# Instead of always starting "today" (which skips whatever was missed on
+# weekends/holidays/downtime), resume from the last candle actually saved.
+# The 5paisa API only returns candles for days the market was open, so this
+# self-heals gaps automatically without needing a manual holiday calendar.
+last_dt_row = pd.read_sql(
+    'SELECT MAX("Datetime") AS last_dt FROM events',
+    engine
+)
+
+if not last_dt_row.empty and pd.notna(last_dt_row["last_dt"].iloc[0]):
+    last_saved_dt = pd.to_datetime(last_dt_row["last_dt"].iloc[0])
+    start_time = (last_saved_dt + timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+else:
+    # No history yet — bootstrap with 10 days back
+    start_time = (datetime.now() - timedelta(days=10)).strftime("%Y-%m-%d 09:15:00")
+
 print(f"Fetching 5-minute data from: {start_time}")
 
 new_frames = []
@@ -452,29 +466,26 @@ if new_frames:
         # DROP OLD COLUMN BEFORE MERGE (VERY IMPORTANT)
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
-        
-        # ===== FIX: DAILY MERGE =====
 
-        # Convert yahoo to daily
-        data["Date"] = data["Datetime"].dt.date
-        data = data.sort_values("Datetime")
-        data = data.groupby("Date").last().reset_index()
-        
-        # Ensure df_all has Date
-        df_all["Date"] = pd.to_datetime(df_all["Datetime"]).dt.date
-        
-        # Merge
-        df_all = df_all.merge(
-            data[["Date", name]],
-            on="Date",
-            how="left"
+        # ===== FIX: TIMESTAMP-ASOF MERGE (no calendar-date mismatch) =====
+        # Matching by calendar Date breaks because Friday's US close lands on
+        # a Saturday IST timestamp — it never has a same-Date match for
+        # Friday or Monday in India, so it silently ffills stale data.
+        # merge_asof instead grabs the latest known US value at or before
+        # each Indian candle's real timestamp, regardless of what calendar
+        # day it fell on.
+        data = data.sort_values("Datetime").dropna(subset=["Datetime", name])
+        df_all = df_all.sort_values("Datetime").reset_index(drop=True)
+
+        df_all = pd.merge_asof(
+            df_all,
+            data[["Datetime", name]],
+            on="Datetime",
+            direction="backward"
         )
-        
-        # Fill values
-        df_all[name] = df_all[name].ffill().fillna(0)
-        
-        
-    
+
+        df_all[name] = pd.to_numeric(df_all[name], errors="coerce").ffill().fillna(0)
+
     # ================= INDEX FEATURES =================
     
     index_tickers = {
@@ -572,24 +583,23 @@ if new_frames:
         if name in df_all.columns:
             df_all = df_all.drop(columns=[name])
 
-        # Floor Yahoo timestamps to 5-min (already done above)
+        # ===== FIX: TIMESTAMP-ASOF MERGE =====
+        # Exact-equality merge on floored Datetime leaves a NaN whenever
+        # Yahoo skips a 5-min index bar. merge_asof instead grabs the
+        # nearest prior known Nifty/BankNifty value, so no gaps.
         data["Datetime"] = data["Datetime"].dt.floor("5min")
+        data = data.sort_values("Datetime").dropna(subset=["Datetime", name])
 
-        # Floor df_all timestamps to 5-min before merge
-        df_all["Datetime_floor"] = pd.to_datetime(df_all["Datetime"]).dt.floor("5min")
+        df_all = df_all.sort_values("Datetime").reset_index(drop=True)
 
-        # Merge on floored datetime
-        merged = df_all.merge(
+        df_all = pd.merge_asof(
+            df_all,
             data[["Datetime", name]],
-            left_on="Datetime_floor",
-            right_on="Datetime",
-            how="left"
+            on="Datetime",
+            direction="backward"
         )
 
-        # Clean up
-        df_all[name] = merged[name].values
-        df_all[name] = df_all[name].ffill().fillna(0)
-        df_all.drop(columns=["Datetime_floor"], inplace=True, errors="ignore")
+        df_all[name] = pd.to_numeric(df_all[name], errors="coerce").ffill().fillna(0)
     
     # ================= FORCE ALL MARKET COLUMNS =================
 
@@ -672,6 +682,12 @@ if new_frames:
     
     except Exception as e:
         print("Sentiment error:", e)
+
+    # ================= RESTORE ROW ORDER =================
+    # merge_asof calls above sorted by Datetime only; restore (Stock, Datetime)
+    # order as a safety net before per-stock feature engineering below.
+    df_all = df_all.sort_values(["Stock", "Datetime"]).reset_index(drop=True)
+
     # ================= FEATURE ENGINEERING =================
 
     #df_new = df_new.sort_values(["Stock","Datetime"])
@@ -1175,6 +1191,7 @@ if ist_now.hour >= 13:
             print("Strategy results saved")
 
 print("Updater finished successfully")
+    
 
 
 
