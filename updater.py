@@ -857,10 +857,18 @@ if new_frames:
     
     #momentum10 = df_all.groupby("Stock")["Close"].pct_change(10)
     # Change this one line only
-    momentum10 = df_all.groupby(["Stock", df_all["Datetime"].dt.date])["Close"].pct_change(10)
+    #momentum10 = df_all.groupby(["Stock", df_all["Datetime"].dt.date])["Close"].pct_change(10)
+    #df_all["MomentumEvent"] = (
+    #    momentum10.abs() > 0.003
+    #).astype(int)
     df_all["MomentumEvent"] = (
-        momentum10.abs() > 0.003
-    ).astype(int)
+    df_all.assign(_date=df_all["Datetime"].dt.date)
+    .groupby(["Stock", "_date"])["Close"]
+    .transform(lambda x: x.pct_change(10).abs().gt(0.003))
+    .astype(int)
+    .fillna(0)
+    )
+    
     
     df_all["SweepEvent"] = (
         (df_all["HighSweep"] == 1) |
