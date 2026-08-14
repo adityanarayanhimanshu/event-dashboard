@@ -429,7 +429,7 @@ elif page=="📊  Results":
 # ══════════════════════════════════════════════════════════════
 elif page=="🔬  Analytics":
     st.markdown("# Analytics")
-    adf=get_trades("2026-01-05",str(TODAY))
+    adf=get_trades("2026-03-10",str(TODAY))
     if adf.empty: st.info("Not enough data.")
     else:
         adf['entry_time']=pd.to_datetime(adf['entry_time'])
@@ -505,7 +505,7 @@ elif page=="🔬  Analytics":
 # ══════════════════════════════════════════════════════════════
 elif page=="🏆  Stock Ledger":
     st.markdown("# Stock Ledger")
-    adf=get_trades("2026-01-05",str(TODAY))
+    adf=get_trades("2026-03-10",str(TODAY))
     if adf.empty: st.info("No data.")
     else:
         adf['pv']=adf['trade_return'].apply(pnl)
@@ -547,7 +547,7 @@ elif page=="🏆  Stock Ledger":
 # ══════════════════════════════════════════════════════════════
 elif page=="📈  Portfolio":
     st.markdown("# Portfolio")
-    adf=get_trades("2026-01-05",str(TODAY))
+    adf=get_trades("2026-03-10",str(TODAY))
     if adf.empty: st.info("No trade history.")
     else:
         adf=adf.sort_values('entry_time').reset_index(drop=True)
