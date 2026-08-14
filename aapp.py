@@ -10,7 +10,7 @@ from plotly.subplots import make_subplots
 #  CONSTANTS
 # ══════════════════════════════════════════════════════════════
 CAPITAL  = 100_000
-COST_PCT = 16 / 10_000
+COST_PCT = 8 / 10_000
 RF_DAILY = 0.065 / 252
 
 def ist():
@@ -107,7 +107,7 @@ sig AS (
     FROM events e CROSS JOIN p
     WHERE DATE(e."Datetime") BETWEEN '{s}' AND '{e}'
       AND ({LF} OR {SF})
-      AND e."Datetime" AT TIME ZONE 'Asia/Kolkata'>=(DATE(e."Datetime")+'09:25:00'::time)::timestamp
+      AND e."Datetime" AT TIME ZONE 'Asia/Kolkata'>=(DATE(e."Datetime")+'09:15:00'::time)::timestamp
       AND e."Datetime" AT TIME ZONE 'Asia/Kolkata'<=(DATE(e."Datetime")+'10:15:00'::time)::timestamp
 ),
 fp AS (
@@ -149,7 +149,7 @@ def get_radar():
     sql="""SELECT DISTINCT ON ("Stock") "Stock","Datetime","Pred","RelativeRank",
            "NiftyMomentum","VolumeShock","Trend3","Momentum5","LiquidityVacuum","Momentum60"
            FROM events WHERE DATE("Datetime")=CURRENT_DATE
-           AND "Datetime" AT TIME ZONE 'Asia/Kolkata'>=(CURRENT_DATE+'09:20:00'::time)::timestamp
+           AND "Datetime" AT TIME ZONE 'Asia/Kolkata'>=(CURRENT_DATE+'09:15:00'::time)::timestamp
            ORDER BY "Stock","Datetime" DESC"""
     try:    return pd.read_sql(sql, engine)
     except: return pd.DataFrame()
@@ -283,7 +283,7 @@ with st.sidebar:
     st.markdown(f"""<div style="border-top:1px solid var(--bd);margin-top:14px;padding-top:14px;
                 font-size:11px;color:var(--mu);line-height:2">
       Capital &emsp;<span style="color:var(--tx);font-family:'IBM Plex Mono',monospace">₹1,00,000</span><br>
-      Cost &emsp;&emsp;<span style="color:var(--tx);font-family:'IBM Plex Mono',monospace">16 bps</span><br>
+      Cost &emsp;&emsp;<span style="color:var(--tx);font-family:'IBM Plex Mono',monospace">8 bps</span><br>
       Refresh &emsp;<span style="color:var(--tx);font-family:'IBM Plex Mono',monospace">60 s</span>
     </div>""",unsafe_allow_html=True)
 
