@@ -345,9 +345,13 @@ if page=="⚡  Live Feed":
         fig_r.add_vline(x=0.38,line_dash="dot",line_color="rgba(255,45,85,0.4)",line_width=1)
         fig_r.add_hline(y=0.65,line_dash="dot",line_color="rgba(0,232,122,0.4)",line_width=1)
         fig_r.add_hline(y=0.35,line_dash="dot",line_color="rgba(255,45,85,0.4)",line_width=1)
-        fig_r.update_layout(**CL,height=420,
-                            xaxis=dict(**CL['xaxis'],title="Pred Score",range=[0.2,0.9]),
-                            yaxis=dict(**CL['yaxis'],title="Relative Rank",range=[0,1]))
+        fig_r.update_layout(
+            paper_bgcolor='#03080f',plot_bgcolor='#060e1c',
+            font=dict(family='Inter',color='#7b92b2',size=12),
+            margin=dict(l=0,r=0,t=12,b=0),height=420,
+            xaxis=dict(showgrid=False,color='#7b92b2',zeroline=False,title="Pred Score",range=[0.2,0.9]),
+            yaxis=dict(showgrid=True,gridcolor='#112240',color='#7b92b2',zeroline=False,title="Relative Rank",range=[0,1])
+        )
         st.plotly_chart(fig_r,use_container_width=True)
         st.caption("Bubble size = VolumeShock · Green = nearing LONG threshold · Red = nearing SHORT threshold · Dotted lines = signal thresholds")
 
