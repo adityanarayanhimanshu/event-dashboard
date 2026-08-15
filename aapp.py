@@ -303,7 +303,7 @@ if page=="⚡  Live Feed":
     st.markdown('<div class="sh">Signal Radar — All Stocks Today</div>',unsafe_allow_html=True)
     rd=get_radar()
     if rd.empty:
-        st.info("Radar activates after 09:20 on weekdays.")
+        st.info("Radar activates after 09:15 on weekdays.")
     else:
         def lp(r):
             s=0
