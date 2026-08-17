@@ -91,13 +91,13 @@ def _core_sql(s, e):
     AND e."Momentum5">0.002
     AND e."Datetime" AT TIME ZONE 'Asia/Kolkata'<=(DATE(e."Datetime")+'09:45:00'::time)::timestamp
     AND e."LiquidityVacuum">0 AND e."Trend3">0 AND e."VolumeShock">1.1 AND e."Momentum60">-0.003
-    AND e."Stock" NOT IN ('DLF','HCLTECH','PIIND','COALINDIA','PAYTM','TATACOMM')"""
+    AND e."Stock" NOT IN ('VOLTAS','HCLTECH','MPHASIS','PERSISTENT','TCS')"""
     SF = """e."Pred"<=(1-p.pred_th) AND e."RelativeRank"<=(1-p.rr_th)
     AND e."NiftyMomentum"<=-p.nifty_th AND e."RelativeRank">0.05
     AND e."NiftyMomentum"<-0.002 AND e."Momentum5"<0 AND e."Momentum15"<0
     AND e."Momentum30"<0 AND e."VolumeShock">0.7 AND e."Momentum60"<0.005
     AND e."RelativeRank"<0.31 AND e."Trend3"<0.01
-    AND e."Stock" NOT IN ('DLF','COALINDIA','PIIND','NAUKRI','WIPRO','GAIL','TATASTEEL','HDFCLIFE')"""
+    AND e."Stock" NOT IN ('KOTAKBANK','HDFCBANK','NAUKRI','GAIL','TATASTEEL')"""
     return f"""
 WITH p AS (SELECT 0.62 AS pred_th,0.65 AS rr_th,0.00 AS nifty_th),
 sig AS (
