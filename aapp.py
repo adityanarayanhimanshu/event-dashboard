@@ -91,7 +91,7 @@ def _core_sql(s, e):
     AND e."Momentum5">0.002
     AND e."Datetime" AT TIME ZONE 'Asia/Kolkata'<=(DATE(e."Datetime")+'09:45:00'::time)::timestamp
     AND e."LiquidityVacuum">0 AND e."Trend3">0 AND e."VolumeShock">1.1 AND e."Momentum60">-0.003
-    AND e."Stock" NOT IN ('VOLTAS','HCLTECH','TCS')"""
+    AND e."Stock" NOT IN ('VOLTAS','HCLTECH','TCS','PAYTM')"""
     SF = """e."Pred"<=(1-p.pred_th) AND e."RelativeRank"<=(1-p.rr_th)
     AND e."NiftyMomentum"<=-p.nifty_th AND e."RelativeRank">0.05
     AND e."NiftyMomentum"<-0.002 AND e."Momentum5"<0 AND e."Momentum15"<0
