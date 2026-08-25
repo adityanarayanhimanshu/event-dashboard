@@ -25,7 +25,7 @@ jobs:
           NEON_URL: ${{ secrets.NEON_URL }}
         run: |
           for i in $(seq 1 60); do
-            echo "=== Run $i of 12 ==="
+            echo "=== Run $i of 60 ==="
             python updater.py
             if [ $i -lt 60 ]; then
               echo "Sleeping 5 seconds..."
