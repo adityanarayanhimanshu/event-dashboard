@@ -28,7 +28,7 @@ jobs:
             echo "=== Run $i of 60 ==="
             python updater.py
             if [ $i -lt 60 ]; then
-              echo "Sleeping 5 seconds..."
-              sleep 5
+              echo "Sleeping 15 seconds..."
+              sleep 15
             fi
           done
