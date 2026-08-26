@@ -6,7 +6,7 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 70
+    timeout-minutes: 75
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +28,7 @@ jobs:
             echo "=== Run $i of 60 ==="
             python updater.py
             if [ $i -lt 60 ]; then
-              echo "Sleeping 15 seconds..."
-              sleep 15
+              echo "Sleeping 30 seconds..."
+              sleep 30
             fi
           done
