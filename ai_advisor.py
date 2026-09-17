@@ -356,7 +356,7 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
     with col1:
         view_date = st.date_input("Date", value=TODAY, max_value=TODAY, key="ai_date")
     with col2:
-        auto_analyze = False
+        auto_analyze = st.checkbox("Auto-analyze all", value=False)
 
     df = get_trades(str(view_date), str(view_date))
 
