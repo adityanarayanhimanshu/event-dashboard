@@ -76,7 +76,7 @@ def fetch_news(stock: str) -> list[str]:
 
 # ── Historical performance from DB ──────────────────────────
 @st.cache_data(ttl=600)
-def fetch_stock_history(stock: str, side: str, engine) -> str:
+def fetch_stock_history(stock: str, side: str, _engine) -> str:
     try:
         sql = f"""
         WITH p AS (SELECT 0.62 AS pred_th, 0.65 AS rr_th, 0.00 AS nifty_th),
