@@ -8,7 +8,7 @@ streamlit
 pyotp
 transformers
 numpy
-scikit-learn
+scikit-learn==1.8.0
 lightgbm
 py5paisa
 yfinance
