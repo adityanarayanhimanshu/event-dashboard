@@ -361,11 +361,16 @@ if page=="⚡  Live Feed":
     if not df.empty:
         st.markdown('<div class="sh">Today\'s Signals</div>',unsafe_allow_html=True)
         mv=get_moves(str(TODAY),str(TODAY))
-        if not mv.empty:
-            mv['trade_date']=pd.to_datetime(mv['trade_date']).dt.date
-            df['tdd']=pd.to_datetime(df['trade_date']).dt.date
-            df=df.merge(mv[['Stock','trade_date','dr','rng']],
-                        left_on=['Stock','tdd'],right_on=['Stock','trade_date'],how='left')
+
+    if not mv.empty:
+        mv['trade_date'] = pd.to_datetime(mv['trade_date']).dt.date
+        df['trade_date'] = pd.to_datetime(df['trade_date']).dt.date
+
+        df = df.merge(
+            mv[['Stock','trade_date','dr','rng']],
+            on=['Stock','trade_date'],
+            how='left'
+        )
         srt=st.selectbox("Sort",["Return ↓","Return ↑","Entry Time"],key="ls")
         if srt=="Return ↓":   df=df.sort_values('trade_return',ascending=False)
         elif srt=="Return ↑": df=df.sort_values('trade_return')
