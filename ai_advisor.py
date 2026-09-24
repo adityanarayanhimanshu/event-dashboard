@@ -77,7 +77,7 @@ def fetch_news(stock: str) -> list[str]:
 @st.cache_data(ttl=600)
 def fetch_stock_history(stock: str, side: str, _engine, analysis_time=None) -> str:
     try:
-                cutoff_date = None
+        cutoff_date = None
 
         if analysis_time is not None:
             cutoff_date = pd.to_datetime(analysis_time).date()
@@ -193,11 +193,17 @@ def analyze_signal(
         research_block = f"""
 NEWS RESEARCH MODE: HISTORICAL
 Trade timestamp / information cutoff: {cutoff_text} Asia/Kolkata.
+
+All supplied historical performance data has also been cutoff-filtered.
+The historical performance section contains only completed trading days BEFORE the signal date.
+Do not use or infer any price movement, trade outcome, news, announcement, or market information that occurred after the information cutoff.
+Treat the cutoff as a strict information boundary.
+
 Search the web for news and market information that was publicly available ON OR BEFORE this timestamp.
 For historical web searches, include an explicit `before:YYYY-MM-DD` date restriction in search queries whenever possible.
 Do NOT use later news, later announcements, or later price-moving information.
 If a source was published after the cutoff, ignore it for the analysis.
-"""
+"""     
     else:
         cutoff_text = "CURRENT"
         research_block = """
