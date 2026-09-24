@@ -228,7 +228,11 @@ HEADLINES FROM GOOGLE NEWS (supporting input; verify important items with web se
 {search_instruction}
 News is supporting evidence only; do not invent technical evidence or override the quantitative signal without a clear reason.
 
-Reply with ONLY valid JSON (no markdown, no explanation outside JSON):
+Reply with ONLY one complete, valid JSON object.
+Do not use markdown or code fences.
+Do not write anything before or after the JSON.
+Do not truncate any string or field.
+Make sure the JSON ends with the final closing brace.
 {{
   "signal": "GREEN" | "YELLOW" | "RED",
   "confidence": <integer 0-100>,
@@ -249,8 +253,8 @@ RED    — avoid, or exit immediately if already in trade"""
 
     try:
         request_kwargs = {
-            "model": "claude-sonnet-4-6",
-            "max_tokens": 500,
+            "model": "claude-opus-5-5",
+            "max_tokens": 2048,
             "messages": [{"role": "user", "content": prompt}],
         }
         if enable_search:
@@ -457,7 +461,7 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
 
     def analysis_cache_key(row, mode="signal"):
         return (f"{view_date}_{row.get('Stock','')}_{row.get('entry_time','')}"
-                f"_{mode}_search_{enable_search}")
+                f"_{mode}_search_{enable_search}_model_opus55")
 
     # ── Live quotes for open trade monitoring ────────────────
     live_prices = {}
