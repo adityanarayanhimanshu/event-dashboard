@@ -499,7 +499,7 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
             i, row, cache_key = item
             is_historical = view_date < TODAY
             news = [] if is_historical else fetch_news(str(row["Stock"]))
-            hist = fetch_stock_history(str(row["Stock"]), str(row["side"]), engine)
+            hist = fetch_stock_history(str(row["Stock"]), str(row["side"]), engine, analysis_time=row.get("entry_time"))
 
             current_pnl = None
             if str(row["Stock"]) in live_prices and int(row.get("eod_flag", 0)) == 1:
@@ -646,7 +646,7 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
                             is_historical = view_date < TODAY
                             news = [] if is_historical else fetch_news(str(row["Stock"]))
                             hist = fetch_stock_history(
-                                str(row["Stock"]), str(row["side"]), engine)
+                                str(row["Stock"]), str(row["side"]), engine, analysis_time=row.get("entry_time"))
                             cache_key = analysis_cache_key(row)
                             a = st.session_state.ai_analysis_cache.get(cache_key)
                             if a is None:
