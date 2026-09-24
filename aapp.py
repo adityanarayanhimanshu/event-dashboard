@@ -359,51 +359,51 @@ if page=="⚡  Live Feed":
         st.caption("Bubble size = VolumeShock · Green = nearing LONG threshold · Red = nearing SHORT threshold · Dotted lines = signal thresholds")
 
     if not df.empty:
-    st.markdown('<div class="sh">Today\'s Signals</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sh">Today\'s Signals</div>', unsafe_allow_html=True)
 
-    mv = get_moves(str(TODAY), str(TODAY))
+        mv = get_moves(str(TODAY), str(TODAY))
 
-    if not mv.empty:
-        mv['trade_date'] = pd.to_datetime(mv['trade_date']).dt.date
-        df['trade_date'] = pd.to_datetime(df['trade_date']).dt.date
+        if not mv.empty:
+            mv['trade_date'] = pd.to_datetime(mv['trade_date']).dt.date
+            df['trade_date'] = pd.to_datetime(df['trade_date']).dt.date
 
-        df = df.merge(
-            mv[['Stock', 'trade_date', 'dr', 'rng']],
-            on=['Stock', 'trade_date'],
-            how='left'
+            df = df.merge(
+                mv[['Stock', 'trade_date', 'dr', 'rng']],
+                on=['Stock', 'trade_date'],
+                how='left'
+            )
+
+        srt = st.selectbox(
+            "Sort",
+            ["Return ↓", "Return ↑", "Entry Time"],
+            key="ls"
         )
 
-    srt = st.selectbox(
-        "Sort",
-        ["Return ↓", "Return ↑", "Entry Time"],
-        key="ls"
-    )
+        if srt == "Return ↓":
+            df = df.sort_values('trade_return', ascending=False)
+        elif srt == "Return ↑":
+            df = df.sort_values('trade_return')
+        else:
+            df = df.sort_values('entry_time')
 
-    if srt == "Return ↓":
-        df = df.sort_values('trade_return', ascending=False)
-    elif srt == "Return ↑":
-        df = df.sort_values('trade_return')
-    else:
-        df = df.sort_values('entry_time')
+        html = ""
 
-    html = ""
+        for _, row in df.iterrows():
+            dm = (
+                float(row['dr'])
+                if 'dr' in row and pd.notna(row.get('dr'))
+                else None
+            )
 
-    for _, row in df.iterrows():
-        dm = (
-            float(row['dr'])
-            if 'dr' in row and pd.notna(row.get('dr'))
-            else None
-        )
+            dr2 = (
+                float(row['rng'])
+                if 'rng' in row and pd.notna(row.get('rng'))
+                else None
+            )
 
-        dr2 = (
-            float(row['rng'])
-            if 'rng' in row and pd.notna(row.get('rng'))
-            else None
-        )
+            html += tcard(row, dm, dr2)
 
-        html += tcard(row, dm, dr2)
-
-    st.markdown(html, unsafe_allow_html=True)
+        st.markdown(html, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════════
 #  PAGE 2 — RESULTS
