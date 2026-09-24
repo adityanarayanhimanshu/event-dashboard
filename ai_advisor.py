@@ -627,7 +627,12 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
             ep = float(row.get("entry_price", 0))
             lp = float(live_prices.get(str(row["Stock"]), 0))
             cpnl = None
-            if ep > 0 and lp > 0 and int(row.get("eod_flag", 0)) == 1:
+            if (
+                view_date == TODAY
+                and ep > 0
+                and lp > 0
+                and int(row.get("eod_flag", 0)) == 1
+            ):
                 cpnl = ((lp-ep)/ep if row["side"]=="LONG" else (ep-lp)/ep)
             render_signal_card(row, a, cpnl)
         elif cached_a is not None:
@@ -670,7 +675,7 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
                                     history_text=hist, news_headlines=news,
                                     analysis_time=row.get("entry_time"),
                                     historical_mode=is_historical,
-                                    enable_search=enable_search,
+                                    enable_search=enable_search if not is_historical else False,
                                 )
                                 st.session_state.ai_analysis_cache[cache_key] = a
                             render_signal_card(row, a)
