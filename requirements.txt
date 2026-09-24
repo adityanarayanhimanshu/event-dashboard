@@ -16,3 +16,4 @@ accelerate
 sentencepiece
 torch
 anthropic
+feedparser
