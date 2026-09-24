@@ -483,7 +483,7 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
 
     def analysis_cache_key(row, mode="signal"):
         return (f"{view_date}_{row.get('Stock','')}_{row.get('entry_time','')}"
-                f"_{mode}_search_{enable_search}_model_opus55")
+                f"_{mode}_search_{enable_search}_model_opus55_cutoff_v2")
 
     # ── Live quotes for open trade monitoring ────────────────
     live_prices = {}
