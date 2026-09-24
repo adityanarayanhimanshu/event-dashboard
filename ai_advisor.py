@@ -199,10 +199,9 @@ The historical performance section contains only completed trading days BEFORE t
 Do not use or infer any price movement, trade outcome, news, announcement, or market information that occurred after the information cutoff.
 Treat the cutoff as a strict information boundary.
 
-Search the web for news and market information that was publicly available ON OR BEFORE this timestamp.
-For historical web searches, include an explicit `before:YYYY-MM-DD` date restriction in search queries whenever possible.
-Do NOT use later news, later announcements, or later price-moving information.
-If a source was published after the cutoff, ignore it for the analysis.
+Historical web search is DISABLED for this analysis.
+Do not search the current web and do not use any information published after the cutoff.
+Use only the supplied quantitative signal and cutoff-filtered historical performance data.
 """     
     else:
         cutoff_text = "CURRENT"
@@ -244,7 +243,7 @@ HISTORICAL PERFORMANCE
 
 {research_block}
 
-HEADLINES FROM GOOGLE NEWS (supporting input; verify important items with web search)
+HEADLINES FROM GOOGLE NEWS (supporting input; historical analysis receives no live headlines)
 {news_text}
 
 {search_instruction}
@@ -483,7 +482,7 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
 
     def analysis_cache_key(row, mode="signal"):
         return (f"{view_date}_{row.get('Stock','')}_{row.get('entry_time','')}"
-                f"_{mode}_search_{enable_search}_model_opus55_cutoff_v2")
+                f"_{mode}_search_{enable_search}_model_opus55_cutoff_v3")
 
     # ── Live quotes for open trade monitoring ────────────────
     live_prices = {}
