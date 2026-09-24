@@ -508,7 +508,11 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
             hist = fetch_stock_history(str(row["Stock"]), str(row["side"]), engine, analysis_time=row.get("entry_time"))
 
             current_pnl = None
-            if str(row["Stock"]) in live_prices and int(row.get("eod_flag", 0)) == 1:
+            if (
+                not is_historical
+                and str(row["Stock"]) in live_prices
+                and int(row.get("eod_flag", 0)) == 1
+            ):
                 ep = float(row.get("entry_price", 0))
                 lp = float(live_prices[str(row["Stock"])])
                 if ep > 0:
@@ -528,7 +532,7 @@ def render_ai_advisor(engine, TODAY, MARKET_OPEN, get_trades, pnl_fn):
                 current_pnl=current_pnl,
                 analysis_time=row.get("entry_time"),
                 historical_mode=is_historical,
-                enable_search=enable_search,
+                enable_search=enable_search if not is_historical else False,
             )
             return i, cache_key, a
 
