@@ -75,8 +75,24 @@ def fetch_news(stock: str) -> list[str]:
 
 # ── Historical performance from DB ──────────────────────────
 @st.cache_data(ttl=600)
-def fetch_stock_history(stock: str, side: str, _engine) -> str:
+def fetch_stock_history(stock: str, side: str, _engine, analysis_time=None) -> str:
     try:
+                cutoff_date = None
+
+        if analysis_time is not None:
+            cutoff_date = pd.to_datetime(analysis_time).date()
+
+            history_date_filter = f"""
+                AND (e."Datetime" AT TIME ZONE 'Asia/Kolkata')::date
+                    >= ('{cutoff_date}'::date - INTERVAL '90 days')::date
+                AND (e."Datetime" AT TIME ZONE 'Asia/Kolkata')::date
+                    < '{cutoff_date}'::date
+            """
+        else:
+            history_date_filter = """
+                AND (e."Datetime" AT TIME ZONE 'Asia/Kolkata')::date
+                    >= (CURRENT_DATE - INTERVAL '90 days')::date
+            """
         sql = f"""
         WITH p AS (SELECT 0.62 AS pred_th, 0.65 AS rr_th, 0.00 AS nifty_th),
         sig AS (
@@ -99,7 +115,7 @@ def fetch_stock_history(stock: str, side: str, _engine) -> str:
                    END AS side
             FROM events e CROSS JOIN p
             WHERE e."Stock"='{stock}'
-              AND DATE(e."Datetime")>=CURRENT_DATE-90
+              {history_date_filter}
               AND e."Datetime" AT TIME ZONE 'Asia/Kolkata'>=(DATE(e."Datetime")+'09:15:00'::time)::timestamp
               AND e."Datetime" AT TIME ZONE 'Asia/Kolkata'<=(DATE(e."Datetime")+'10:15:00'::time)::timestamp
         ),
