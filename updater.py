@@ -14,43 +14,48 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipe
 from config import cred, client_code, mpin, totp_key
 
 # ====================== LOGIN ======================
-print("ing 5Paisa login...")
+print("5Paisa login...")
 
 client = FivePaisaClient(cred=cred)
 
-totp = pyotp.TOTP(totp_key)
-totp_code = totp.now()
+response = None
 
-try:
-    response = client.get_totp_session(
-        client_code=client_code,
-        totp=totp_code,
-        pin=mpin
-    )
-except Exception as e:
-    print("Login exception:", e)
-    sys.exit(1)
+# TOTP changes every 30 seconds.
+# Retry with a freshly generated OTP if the first attempt fails.
+for attempt in range(3):
 
-print("Login response:", response)
+    totp = pyotp.TOTP(totp_key)
+    totp_code = totp.now()
 
-# Login already successful if response exists
+    print(f"5Paisa login attempt {attempt + 1}/3...")
+
+    try:
+        response = client.get_totp_session(
+            client_code=client_code,
+            totp=totp_code,
+            pin=mpin
+        )
+
+        print("Login response:", response)
+
+        if response is not None:
+            print("5Paisa login successful")
+            break
+
+        print("Login failed — waiting for fresh TOTP...")
+        
+    except Exception as e:
+        print("Login exception:", e)
+
+    # Give TOTP time to roll over before generating another code
+    time.sleep(5)
+
 if response is None:
-    print("Login failed")
+    print("5Paisa login failed after 3 attempts")
     sys.exit(1)
-
-print("5Paisa login successful")
 
 # ====================== CONNECT DATABASE ======================
 CONNECTION_STRING = os.getenv("NEON_URL")
-
-print("Login response:", response)
-
-if response is None:
-    print("Login failed")
-    sys.exit(1)
-
-print("5Paisa login successful")
-
 engine = create_engine(CONNECTION_STRING,pool_pre_ping=True)
 print("Connected to Neon DB")
 ########################################################
