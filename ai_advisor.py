@@ -400,7 +400,7 @@ STOCK EDGE RULES (use the HISTORICAL PERFORMANCE card above):
         if point_in_time_signal and analysis_time is not None:
             cutoff = _to_ist(analysis_time)
             now_ist = _to_ist()
-            web_search_allowed = web_search_allowed and abs((now_ist - cutoff).total_seconds()) <= 60
+            web_search_allowed = web_search_allowed and abs((now_ist - cutoff).total_seconds()) <= 300
         if historical_mode:
             web_search_allowed = False
 
